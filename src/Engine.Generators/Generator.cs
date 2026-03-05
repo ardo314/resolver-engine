@@ -11,17 +11,22 @@ public sealed class Generator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find all classes decorated with [Generate]
-        var classes = context.SyntaxProvider.ForAttributeWithMetadataName(
-            "Engine.Core.GenerateAttribute",
-            predicate: static (node, _) => node is ClassDeclarationSyntax,
-            transform: static (ctx, _) => GetClassInfo(ctx))
+        var classes = context
+            .SyntaxProvider.ForAttributeWithMetadataName(
+                "Engine.Core.GenerateAttribute",
+                predicate: static (node, _) => node is ClassDeclarationSyntax,
+                transform: static (ctx, _) => GetClassInfo(ctx)
+            )
             .Where(static info => info is not null)!;
 
-        context.RegisterSourceOutput(classes, static (ctx, classInfo) =>
-        {
-            var source = GenerateSource(classInfo!);
-            ctx.AddSource($"{classInfo!.ClassName}.g.cs", source);
-        });
+        context.RegisterSourceOutput(
+            classes,
+            static (ctx, classInfo) =>
+            {
+                var source = GenerateSource(classInfo!);
+                ctx.AddSource($"{classInfo!.ClassName}.g.cs", source);
+            }
+        );
     }
 
     private static ClassInfo? GetClassInfo(GeneratorAttributeSyntaxContext context)
@@ -29,9 +34,7 @@ public sealed class Generator : IIncrementalGenerator
         if (context.TargetSymbol is not INamedTypeSymbol namedType)
             return null;
 
-        return new ClassInfo(
-            namedType.ContainingNamespace.ToDisplayString(),
-            namedType.Name);
+        return new ClassInfo(namedType.ContainingNamespace.ToDisplayString(), namedType.Name);
     }
 
     private static string GenerateSource(ClassInfo info)

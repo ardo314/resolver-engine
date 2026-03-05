@@ -8,10 +8,15 @@
       "extensions": [
         "ms-dotnettools.csharp",
         "ms-dotnettools.vscode-dotnet-runtime",
-        "github.copilot-chat"
+        "github.copilot-chat",
+        "csharpier.csharpier-vscode"
       ],
       "settings": {
-        "dotnet.defaultSolution": "disable"
+        "dotnet.defaultSolution": "disable",
+        "editor.formatOnSave": true,
+        "[csharp]": {
+          "editor.defaultFormatter": "csharpier.csharpier-vscode"
+        }
       }
     }
   }
