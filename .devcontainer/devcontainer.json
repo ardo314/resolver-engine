@@ -12,7 +12,7 @@
         "csharpier.csharpier-vscode"
       ],
       "settings": {
-        "dotnet.defaultSolution": "disable",
+        "dotnet.defaultSolution": "Engine.sln",
         "editor.formatOnSave": true,
         "[csharp]": {
           "editor.defaultFormatter": "csharpier.csharpier-vscode"
