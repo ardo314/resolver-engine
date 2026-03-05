@@ -1,9 +1,6 @@
-FROM golang:1.25-bookworm
+FROM mcr.microsoft.com/dotnet/sdk:9.0-bookworm-slim
 
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*
-
-RUN go install golang.org/x/tools/gopls@latest && \
-    go install github.com/go-delve/delve/cmd/dlv@latest

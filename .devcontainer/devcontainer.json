@@ -6,8 +6,13 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "golang.go"
-      ]
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "github.copilot-chat"
+      ],
+      "settings": {
+        "dotnet.defaultSolution": "disable"
+      }
     }
   }
 }
