@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Engine.Spatial;
+namespace Modules.Spatial;
 
 /// <summary>
 /// Represents a rigid body transform in 3D space (position + rotation).

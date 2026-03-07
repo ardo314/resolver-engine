@@ -1,6 +1,6 @@
 using Engine.Core;
 
-namespace Engine.Spatial;
+namespace Modules.Spatial;
 
 /// <summary>
 /// A data resolver contract for rigid body transforms in 3D space.

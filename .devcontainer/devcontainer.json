@@ -10,7 +10,8 @@
         "ms-dotnettools.csharp",
         "ms-dotnettools.vscode-dotnet-runtime",
         "github.copilot-chat",
-        "csharpier.csharpier-vscode"
+        "csharpier.csharpier-vscode",
+        "jakubkozera.csharp-dev-tools"
       ],
       "settings": {
         "dotnet.defaultSolution": "Engine.sln",
