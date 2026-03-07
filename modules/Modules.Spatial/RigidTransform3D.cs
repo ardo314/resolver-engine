@@ -1,36 +1,15 @@
-using System.Numerics;
+using Engine.Core;
 
 namespace Modules.Spatial;
 
 /// <summary>
-/// Represents a rigid body transform in 3D space (position + rotation).
+/// Abstract component representing a rigid body transform in 3D space.
 /// </summary>
-public readonly struct RigidTransform3D : IEquatable<RigidTransform3D>
+public abstract class RigidTransform3D : IComponent<RigidTransform3DData>
 {
-    public Vector3 Position { get; }
-    public Quaternion Rotation { get; }
+    /// <inheritdoc />
+    public abstract RigidTransform3DData Get();
 
-    public RigidTransform3D(Vector3 position, Quaternion rotation)
-    {
-        Position = position;
-        Rotation = rotation;
-    }
-
-    public static RigidTransform3D Identity => new(Vector3.Zero, Quaternion.Identity);
-
-    public bool Equals(RigidTransform3D other) =>
-        Position.Equals(other.Position) && Rotation.Equals(other.Rotation);
-
-    public override bool Equals(object? obj) => obj is RigidTransform3D other && Equals(other);
-
-    public override int GetHashCode() => HashCode.Combine(Position, Rotation);
-
-    public override string ToString() =>
-        $"RigidTransform3D(Position: {Position}, Rotation: {Rotation})";
-
-    public static bool operator ==(RigidTransform3D left, RigidTransform3D right) =>
-        left.Equals(right);
-
-    public static bool operator !=(RigidTransform3D left, RigidTransform3D right) =>
-        !left.Equals(right);
+    /// <inheritdoc />
+    public abstract void Set(RigidTransform3DData value);
 }
