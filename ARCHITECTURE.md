@@ -35,9 +35,9 @@ Engine.Core has **no dependency** on NATS, MessagePack, or any infrastructure co
 
 Server-side runtime. Responsibilities:
 
-- **Entity lifecycle** — creation, destruction, ownership via `BackendWorld` (implements `IWorld`).
+- **Entity lifecycle** — creation, destruction, ownership via `World` (implements `IWorld`).
 - **Entity storage** — `EntityStore` provides thread-safe in-memory storage of `EntityRecord` instances.
-- **Component management** — `EntityRecord` manages adding, removing, and querying `IComponent` instances on an entity. `BackendEntity` (implements `IEntity`) wraps a record into the core interface.
+- **Component management** — `EntityRecord` manages adding, removing, and querying `IComponent` instances on an entity. `Entity` (implements `IEntity`) wraps a record into the core interface.
 - **Behaviour hosting** — running Behaviour implementations as services that listen on NATS subjects (planned).
 - **Server stubs** — generated from Engine.Core interfaces by the source generator (planned).
 
@@ -53,8 +53,8 @@ await entity.AddComponent<MyComponent>();
 ```
 
 - **`EngineConnection`** — manages the NATS connection lifecycle (`IAsyncDisposable`).
-- **`ClientWorld`** — implements `IWorld`; communicates with the backend over NATS.
-- **`ClientEntity`** — implements `IEntity`; publishes component operations to NATS subjects.
+- **`World`** — implements `IWorld`; communicates with the backend over NATS.
+- **`Entity`** — implements `IEntity`; publishes component operations to NATS subjects.
 - **Client proxies** — generated from Engine.Core interfaces by the source generator (planned).
 
 References: `Engine.Core`
