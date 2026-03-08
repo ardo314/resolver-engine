@@ -31,7 +31,7 @@ public class World
     /// <summary>
     /// Registers a component instance on the given entity.
     /// </summary>
-    internal void AddComponent(Entity entity, IComponent component)
+    public void AddComponent(Entity entity, IComponent component)
     {
         if (!_components.TryGetValue(entity, out var list))
             throw new InvalidOperationException($"Entity {entity} does not exist in this world.");
@@ -42,7 +42,7 @@ public class World
     /// <summary>
     /// Finds the first component assignable to <typeparamref name="T"/> on the given entity.
     /// </summary>
-    internal T? FindComponent<T>(Entity entity)
+    public T? FindComponent<T>(Entity entity)
         where T : class, IComponent
     {
         if (!_components.TryGetValue(entity, out var list))
@@ -60,7 +60,7 @@ public class World
     /// <summary>
     /// Removes the first component assignable to <typeparamref name="T"/> from the given entity.
     /// </summary>
-    internal bool RemoveComponent<T>(Entity entity)
+    public bool RemoveComponent<T>(Entity entity)
         where T : class, IComponent
     {
         if (!_components.TryGetValue(entity, out var list))
