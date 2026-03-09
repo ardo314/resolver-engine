@@ -13,6 +13,7 @@ Engine.sln
 ├── src/
 │   ├── Engine.Core/          # Shared types, contracts, extension interfaces
 │   ├── Engine.Generators/     # Roslyn incremental source generator (netstandard2.0)
+│   ├── Engine.Hierarchy/      # Entity relationship components (Parent, IParent)
 │   ├── Engine.Math/           # Math primitives and component contracts (Pose, IPose)
 │   ├── Engine.Runtime/        # Executable host — assembly scanning, NATS, dispatch
 │   └── Example/               # Example extension demonstrating the component model
@@ -45,6 +46,15 @@ Math primitives and component contracts that build on Engine.Core. Contains:
 
 - **`Pose`** — a value type holding a `Vector3 Position` and `Quaternion Rotation`.
 - **`IPose`** — component contract interface extending `IComponent<Pose>`.
+
+References: `Engine.Core`
+
+### Engine.Hierarchy
+
+Entity relationship components that build on Engine.Core. Contains:
+
+- **`Parent`** — a value type holding an `EntityId ParentId` referencing the parent entity.
+- **`IParent`** — component contract interface extending `IComponent<Parent>`.
 
 References: `Engine.Core`
 
