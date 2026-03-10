@@ -2,8 +2,9 @@ namespace Engine.Core;
 
 /// <summary>
 /// A uniquely identified object in the world. Entities are containers for components.
-/// The component registry enforces that only one implementation of a given component
-/// contract interface (e.g., <c>IPose</c>) can be attached at a time.
+/// Each component instance is per-entity — adding a component creates a new instance
+/// bound to this entity. The component registry enforces that only one implementation
+/// of a given component contract interface (e.g., <c>IPose</c>) can be attached at a time.
 /// </summary>
 public sealed class Entity
 {
@@ -19,13 +20,24 @@ public sealed class Entity
     public EntityId Id { get; }
 
     /// <summary>
+    /// Fired when a component is added to this entity.
+    /// </summary>
+    public event Action<IComponent>? ComponentAdded;
+
+    /// <summary>
+    /// Fired when a component is removed from this entity.
+    /// </summary>
+    public event Action<IComponent>? ComponentRemoved;
+
+    /// <summary>
     /// Creates a new entity with the given identifier.
     /// </summary>
     internal Entity(EntityId id) => Id = id;
 
     /// <summary>
     /// Adds a component of concrete type <typeparamref name="TImpl"/> to this entity.
-    /// Returns a typed <see cref="ComponentHandle{TData}"/> bound to this entity.
+    /// A new instance is created and bound to this entity. Returns a typed
+    /// <see cref="ComponentHandle{TData}"/> for convenient access.
     /// Only one implementation per contract interface is allowed; adding a second
     /// implementation for the same contract throws <see cref="InvalidOperationException"/>.
     /// </summary>
@@ -51,10 +63,19 @@ public sealed class Entity
         }
 
         var component = new TImpl();
-        await component.OnAddAsync(this, initialData, ct);
+
+        // Inject the owning entity before calling OnAddAsync
+        if (component is Component baseComponent)
+        {
+            baseComponent.Entity = this;
+        }
+
+        await component.OnAddAsync(initialData, ct);
 
         _componentsByContract[contractType] = component;
         _implToContract[implType] = contractType;
+
+        ComponentAdded?.Invoke(component);
 
         return new ComponentHandle<TData>(this, component);
     }
@@ -139,7 +160,7 @@ public sealed class Entity
         if (!_componentsByContract.TryGetValue(contractType, out var component))
             return;
 
-        await component.OnRemoveAsync(this, ct);
+        await component.OnRemoveAsync(ct);
 
         _componentsByContract.Remove(contractType);
 
@@ -151,6 +172,8 @@ public sealed class Entity
 
         foreach (var key in implKeys)
             _implToContract.Remove(key);
+
+        ComponentRemoved?.Invoke(component);
     }
 
     /// <summary>
@@ -176,7 +199,8 @@ public sealed class Entity
     {
         foreach (var component in _componentsByContract.Values.ToList())
         {
-            await component.OnRemoveAsync(this, ct);
+            await component.OnRemoveAsync(ct);
+            ComponentRemoved?.Invoke(component);
         }
 
         _componentsByContract.Clear();
@@ -207,13 +231,13 @@ public sealed class Entity
     /// </summary>
     private static Type ResolveContractType(Type implType)
     {
-        // Walk the base class chain to find ComponentBase<TContract>
+        // Walk the base class chain to find Component<TContract>
         var baseType = implType.BaseType;
         while (baseType is not null)
         {
             if (
                 baseType.IsGenericType
-                && baseType.GetGenericTypeDefinition() == typeof(ComponentBase<>)
+                && baseType.GetGenericTypeDefinition() == typeof(Component<>)
             )
             {
                 return baseType.GetGenericArguments()[0];

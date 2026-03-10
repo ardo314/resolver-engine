@@ -305,7 +305,7 @@ internal sealed class ComponentInfo : IEquatable<ComponentInfo>
 }
 
 /// <summary>
-/// Info about a <c>ComponentBase&lt;TContract&gt;</c> subclass for partial class generation.
+/// Info about a <c>Component&lt;TContract&gt;</c> subclass for partial class generation.
 /// The generator emits event backing fields, raise methods, and the contract interface marker.
 /// </summary>
 internal sealed class ComponentImplInfo : IEquatable<ComponentImplInfo>

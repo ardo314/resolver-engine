@@ -14,7 +14,7 @@ public interface IComponentHandle
 
 /// <summary>
 /// A typed, entity-bound view of a component.
-/// Wraps an <see cref="IComponent{TData}"/> instance and a specific <see cref="Entity"/>
+/// Wraps an <see cref="IComponent{TData}"/> instance and its owning <see cref="Entity"/>
 /// so callers can use <see cref="GetAsync"/> and <see cref="SetAsync"/> without passing
 /// the entity on every call.
 /// </summary>
@@ -25,7 +25,7 @@ public sealed class ComponentHandle<TData> : IComponentHandle
     private readonly IComponent<TData> _component;
 
     /// <summary>
-    /// Fired when the component data is successfully updated for this entity.
+    /// Fired when the component data is successfully updated.
     /// </summary>
     public event Action<TData>? Updated;
 
@@ -39,31 +39,30 @@ public sealed class ComponentHandle<TData> : IComponentHandle
         _entity = entity;
         _component = component;
 
-        // Subscribe to the component's global events and filter by entity.
-        _component.DataUpdated += OnDataUpdated;
-        _component.DataRemoved += OnDataRemoved;
+        // Component is per-entity, so no filtering needed.
+        _component.Updated += OnDataUpdated;
+        _entity.ComponentRemoved += OnComponentRemoved;
     }
 
     /// <summary>
-    /// Gets the component data for this entity.
+    /// Gets the component data.
     /// </summary>
-    public Task<TData> GetAsync(CancellationToken ct = default) => _component.GetAsync(_entity, ct);
+    public Task<TData> GetAsync(CancellationToken ct = default) => _component.GetAsync(ct);
 
     /// <summary>
-    /// Sets the component data for this entity.
+    /// Sets the component data.
     /// </summary>
     public Task SetAsync(TData data, CancellationToken ct = default) =>
-        _component.SetAsync(_entity, data, ct);
+        _component.SetAsync(data, ct);
 
-    private void OnDataUpdated(Entity entity, TData data)
+    private void OnDataUpdated(TData data)
     {
-        if (entity.Id == _entity.Id)
-            Updated?.Invoke(data);
+        Updated?.Invoke(data);
     }
 
-    private void OnDataRemoved(Entity entity)
+    private void OnComponentRemoved(IComponent component)
     {
-        if (entity.Id == _entity.Id)
+        if (ReferenceEquals(component, _component))
         {
             Removed?.Invoke();
             Detach();
@@ -71,12 +70,12 @@ public sealed class ComponentHandle<TData> : IComponentHandle
     }
 
     /// <summary>
-    /// Detaches this handle from the component's events.
+    /// Detaches this handle from events.
     /// Called automatically when the component is removed.
     /// </summary>
     internal void Detach()
     {
-        _component.DataUpdated -= OnDataUpdated;
-        _component.DataRemoved -= OnDataRemoved;
+        _component.Updated -= OnDataUpdated;
+        _entity.ComponentRemoved -= OnComponentRemoved;
     }
 }

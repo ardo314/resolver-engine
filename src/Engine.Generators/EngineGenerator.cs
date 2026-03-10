@@ -59,7 +59,7 @@ public sealed class EngineGenerator : IIncrementalGenerator
             static (spc, symbols) => MessagePackEmitter.Emit(spc, symbols)
         );
 
-        // Pipeline 4: ComponentBase<TContract> subclasses → partial class with events + interface
+        // Pipeline 4: Component<TContract> subclasses → partial class with events + interface
         var componentImpls = context
             .SyntaxProvider.CreateSyntaxProvider(
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
@@ -104,7 +104,7 @@ public sealed class EngineGenerator : IIncrementalGenerator
     private static ComponentImplInfo? GetComponentImpl(GeneratorSyntaxContext ctx)
     {
         var symbol = ctx.SemanticModel.GetDeclaredSymbol(ctx.Node) as INamedTypeSymbol;
-        if (symbol is null || !symbol.IsComponentBaseSubclass())
+        if (symbol is null || !symbol.IsComponentSubclass())
             return null;
 
         return ComponentImplInfo.From(symbol);

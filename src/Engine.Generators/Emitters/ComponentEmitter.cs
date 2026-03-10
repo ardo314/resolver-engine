@@ -6,12 +6,12 @@ using Microsoft.CodeAnalysis;
 namespace Engine.Generators;
 
 /// <summary>
-/// Emits partial classes for <c>ComponentBase&lt;TContract&gt;</c> subclasses.
+/// Emits partial classes for <c>Component&lt;TContract&gt;</c> subclasses.
 /// Each partial class adds:
 /// <list type="bullet">
 ///   <item>The contract interface (e.g., <c>: IPose</c>)</item>
-///   <item><c>DataUpdated</c> and <c>DataRemoved</c> events</item>
-///   <item><c>RaiseUpdated</c> and <c>RaiseRemoved</c> protected methods</item>
+///   <item><c>Updated</c> event</item>
+///   <item><c>RaiseUpdated</c> protected method</item>
 /// </list>
 /// </summary>
 internal static class ComponentEmitter
@@ -60,12 +60,7 @@ internal static class ComponentEmitter
 
         // Events
         sb.AppendLine($"    /// <inheritdoc />");
-        sb.AppendLine(
-            $"    public event Action<Entity, {impl.FullyQualifiedDataType}>? DataUpdated;"
-        );
-        sb.AppendLine();
-        sb.AppendLine($"    /// <inheritdoc />");
-        sb.AppendLine($"    public event Action<Entity>? DataRemoved;");
+        sb.AppendLine($"    public event Action<{impl.FullyQualifiedDataType}>? Updated;");
         sb.AppendLine();
 
         // RaiseUpdated
@@ -73,26 +68,11 @@ internal static class ComponentEmitter
         sb.AppendLine(
             $"    /// Call this from <see cref=\"SetAsync\"/> after a successful write to fire the"
         );
-        sb.AppendLine($"    /// <see cref=\"DataUpdated\"/> event.");
+        sb.AppendLine($"    /// <see cref=\"Updated\"/> event.");
         sb.AppendLine($"    /// </summary>");
-        sb.AppendLine(
-            $"    protected void RaiseUpdated(Entity entity, {impl.FullyQualifiedDataType} data)"
-        );
+        sb.AppendLine($"    protected void RaiseUpdated({impl.FullyQualifiedDataType} data)");
         sb.AppendLine("    {");
-        sb.AppendLine("        DataUpdated?.Invoke(entity, data);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        // RaiseRemoved
-        sb.AppendLine($"    /// <summary>");
-        sb.AppendLine(
-            $"    /// Call this from <see cref=\"IComponent.OnRemoveAsync\"/> after successful cleanup to fire the"
-        );
-        sb.AppendLine($"    /// <see cref=\"DataRemoved\"/> event.");
-        sb.AppendLine($"    /// </summary>");
-        sb.AppendLine($"    protected void RaiseRemoved(Entity entity)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        DataRemoved?.Invoke(entity);");
+        sb.AppendLine("        Updated?.Invoke(data);");
         sb.AppendLine("    }");
 
         sb.AppendLine("}");

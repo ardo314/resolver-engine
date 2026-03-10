@@ -12,7 +12,7 @@ internal static class SymbolExtensions
     private const string BehaviourInterfaceFqn = "Engine.Core.IBehaviour";
     private const string ComponentInterfaceFqn = "Engine.Core.IComponent";
     private const string ComponentGenericFqn = "Engine.Core.IComponent<";
-    private const string ComponentBaseFqn = "Engine.Core.ComponentBase<";
+    private const string ComponentBaseFqn = "Engine.Core.Component<";
 
     /// <summary>
     /// Returns true if the symbol is an interface that directly extends <c>Engine.Core.IBehaviour</c>.
@@ -41,8 +41,8 @@ internal static class SymbolExtensions
         if (symbol.IsAbstract)
             return false;
 
-        // Exclude ComponentBase subclasses — those are component implementations, not data types
-        if (symbol.IsComponentBaseSubclass())
+        // Exclude Component subclasses — those are component implementations, not data types
+        if (symbol.IsComponentSubclass())
             return false;
 
         return symbol.AllInterfaces.Any(i =>
@@ -53,9 +53,9 @@ internal static class SymbolExtensions
 
     /// <summary>
     /// Returns true if the type is a concrete (non-abstract, partial) class
-    /// that derives from <c>Engine.Core.ComponentBase&lt;TContract&gt;</c>.
+    /// that derives from <c>Engine.Core.Component&lt;TContract&gt;</c>.
     /// </summary>
-    public static bool IsComponentBaseSubclass(this INamedTypeSymbol symbol)
+    public static bool IsComponentSubclass(this INamedTypeSymbol symbol)
     {
         if (symbol.TypeKind != TypeKind.Class || symbol.IsAbstract)
             return false;
@@ -66,7 +66,7 @@ internal static class SymbolExtensions
             var display = baseType.OriginalDefinition.ToDisplayString(
                 SymbolDisplayFormat.FullyQualifiedFormat
             );
-            if (display == "global::Engine.Core.ComponentBase<TContract>")
+            if (display == "global::Engine.Core.Component<TContract>")
                 return true;
             baseType = baseType.BaseType;
         }
@@ -75,8 +75,8 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// Extracts the contract interface type parameter from a <c>ComponentBase&lt;TContract&gt;</c> subclass.
-    /// Returns null if the symbol is not a ComponentBase subclass.
+    /// Extracts the contract interface type parameter from a <c>Component&lt;TContract&gt;</c> subclass.
+    /// Returns null if the symbol is not a Component subclass.
     /// </summary>
     public static INamedTypeSymbol? GetComponentContractType(this INamedTypeSymbol symbol)
     {
@@ -86,7 +86,7 @@ internal static class SymbolExtensions
             var display = baseType.OriginalDefinition.ToDisplayString(
                 SymbolDisplayFormat.FullyQualifiedFormat
             );
-            if (display == "global::Engine.Core.ComponentBase<TContract>")
+            if (display == "global::Engine.Core.Component<TContract>")
             {
                 return baseType.TypeArguments[0] as INamedTypeSymbol;
             }

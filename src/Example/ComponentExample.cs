@@ -12,7 +12,17 @@ public class SomeUserPlugin : Plugin
     {
         var entity = await World.CreateEntityAsync(ct);
 
-        // Adding components — must use concrete type
+        // Entity-level lifecycle events
+        entity.ComponentAdded += (component) =>
+        {
+            Console.WriteLine($"Component {component.GetType().Name} added to entity {entity}");
+        };
+        entity.ComponentRemoved += (component) =>
+        {
+            Console.WriteLine($"Component {component.GetType().Name} removed from entity {entity}");
+        };
+
+        // Adding components — must use concrete type (creates a per-entity instance)
         var pose = await entity.AddComponentAsync<InMemoryPose, Pose>(
             new Pose { Position = Vector3.Zero, Rotation = Quaternion.Identity },
             ct

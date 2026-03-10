@@ -13,24 +13,23 @@ public interface IDatabase : IBehaviour
     Task DeleteRecordAsync(Entity entity, CancellationToken ct = default);
 }
 
-public partial class DatabasePose : ComponentBase<IPose>
+public partial class DatabasePose : Component<IPose>
 {
-    public async Task OnAddAsync(Entity entity, Pose initialData, CancellationToken ct = default)
+    public async Task OnAddAsync(Pose initialData, CancellationToken ct = default)
     {
-        var database = await entity.GetBehaviourAsync<IDatabase>();
-        await database.CreateRecordAsync(entity, initialData, ct);
-        Console.WriteLine($"Entity {entity} added to DatabasePose component.");
+        var database = await Entity.GetBehaviourAsync<IDatabase>();
+        await database.CreateRecordAsync(Entity, initialData, ct);
+        Console.WriteLine($"Entity {Entity} added to DatabasePose component.");
     }
 
-    public async Task OnRemoveAsync(Entity entity, CancellationToken ct = default)
+    public async Task OnRemoveAsync(CancellationToken ct = default)
     {
-        var database = await entity.GetBehaviourAsync<IDatabase>();
-        await database.DeleteRecordAsync(entity, ct);
-        RaiseRemoved(entity);
-        Console.WriteLine($"Entity {entity} removed from DatabasePose component.");
+        var database = await Entity.GetBehaviourAsync<IDatabase>();
+        await database.DeleteRecordAsync(Entity, ct);
+        Console.WriteLine($"Entity {Entity} removed from DatabasePose component.");
     }
 
-    public Task<Pose> GetAsync(Entity entity, CancellationToken ct = default)
+    public Task<Pose> GetAsync(CancellationToken ct = default)
     {
         var data = new Pose
         {
@@ -40,12 +39,12 @@ public partial class DatabasePose : ComponentBase<IPose>
         return Task.FromResult(data);
     }
 
-    public Task SetAsync(Entity entity, Pose data, CancellationToken ct = default)
+    public Task SetAsync(Pose data, CancellationToken ct = default)
     {
         Console.WriteLine(
-            $"Setting pose for entity {entity} to position {data.Position} and rotation {data.Rotation}"
+            $"Setting pose for entity {Entity} to position {data.Position} and rotation {data.Rotation}"
         );
-        RaiseUpdated(entity, data);
+        RaiseUpdated(data);
         return Task.CompletedTask;
     }
 }
