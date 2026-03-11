@@ -1,7 +1,7 @@
 using System.Reflection;
 using Engine.Core;
 
-namespace Engine.Runtime;
+namespace Engine.ModuleRuntime;
 
 /// <summary>
 /// Scans a directory for assemblies containing <see cref="IExtension"/> implementations.

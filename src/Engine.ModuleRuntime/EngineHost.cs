@@ -1,7 +1,7 @@
 using Engine.Core;
 using NATS.Client.Core;
 
-namespace Engine.Runtime;
+namespace Engine.ModuleRuntime;
 
 /// <summary>
 /// Hosts the engine runtime — loads extensions, connects to NATS, and dispatches messages.

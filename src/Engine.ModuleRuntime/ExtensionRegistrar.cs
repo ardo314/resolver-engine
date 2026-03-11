@@ -1,6 +1,6 @@
 using Engine.Core;
 
-namespace Engine.Runtime;
+namespace Engine.ModuleRuntime;
 
 /// <summary>
 /// Collects component and behaviour registrations from extensions.

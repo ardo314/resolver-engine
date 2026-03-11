@@ -15,7 +15,7 @@ Engine.sln
 │   ├── Engine.Generators/     # Roslyn incremental source generator (netstandard2.0)
 │   ├── Engine.Hierarchy/      # Entity relationship components (Parent, IParent)
 │   ├── Engine.Math/           # Math primitives and component contracts (Pose, IPose)
-│   ├── Engine.Runtime/        # Executable host — assembly scanning, NATS, dispatch
+│   ├── Engine.ModuleRuntime/   # Executable host — assembly scanning, NATS, dispatch
 │   └── Example/               # Example extension demonstrating the component model
 ├── modules/
 │   ├── Modules.InMemoryPose/  # In-memory implementation of IPose
@@ -65,7 +65,7 @@ References: `Engine.Core`
 
 ### Engine.Generators
 
-A **Roslyn incremental source generator** targeting `netstandard2.0`. Referenced as an analyzer by consuming projects (Engine.Runtime and any extension). It does not ship as a runtime dependency — only as a build-time code generator.
+A **Roslyn incremental source generator** targeting `netstandard2.0`. Referenced as an analyzer by consuming projects (Engine.ModuleRuntime and any extension). It does not ship as a runtime dependency — only as a build-time code generator.
 
 The generator scans each consuming compilation for:
 
@@ -87,7 +87,7 @@ Internal structure:
 
 References: `Microsoft.CodeAnalysis.CSharp`, `Microsoft.CodeAnalysis.Analyzers` (both `PrivateAssets="all"`)
 
-### Engine.Runtime
+### Engine.ModuleRuntime
 
 An executable host process — pure infrastructure, zero domain logic. Responsibilities:
 
