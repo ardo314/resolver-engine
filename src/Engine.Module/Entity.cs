@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Engine.Module;
 
 using Engine.Core;
@@ -15,26 +17,26 @@ public class Entity
         TComponent component,
         CancellationToken ct = default
     )
-        where TComponent : Component
+        where TComponent : IComponent
     {
         // Implementation to add the component to the entity
     }
 
     public async Task RemoveComponentAsync<TComponent>(CancellationToken ct = default)
-        where TComponent : Component
+        where TComponent : IComponent
     {
         // Implementation to remove the component from the entity
     }
 
     public async Task<bool> HasComponentAsync<TComponent>(CancellationToken ct = default)
-        where TComponent : Component
+        where TComponent : IComponent
     {
         // Implementation to check if the entity has the component
         return false;
     }
 
     public async Task<TComponent> GetComponentAsync<TComponent>(CancellationToken ct = default)
-        where TComponent : Component
+        where TComponent : IComponent
     {
         // Implementation to retrieve the component from the entity
         return default!;
