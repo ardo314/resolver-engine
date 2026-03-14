@@ -1,5 +1,6 @@
-using System.Reflection.Metadata;
+using System.ComponentModel;
+using Engine.Core;
 
 namespace Engine.Module;
 
-public abstract class Component { }
+public abstract class Component : IComponent { }

@@ -1,7 +1,6 @@
 using System.Numerics;
-using Engine.Core;
 
-namespace Engine.Math;
+namespace Engine.Core;
 
 public struct Pose
 {
@@ -9,4 +8,4 @@ public struct Pose
     public Quaternion Rotation { get; init; }
 }
 
-public interface IPose : IComponentData<Pose> { }
+public interface IPose : IDataComponent<Pose> { }
