@@ -6,13 +6,15 @@ namespace Modules.InMemoryPose;
 
 public partial class InMemoryPoseWorker : BehaviourWorker<IPose>
 {
-    public Task<Pose> GetDataAsync(CancellationToken ct = default)
+    private Pose _pose = new Pose { Position = Vector3.Zero, Rotation = Quaternion.Identity };
+
+    public async Task<Pose> GetDataAsync(CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        return _pose;
     }
 
-    public Task SetDataAsync(Pose data, CancellationToken ct = default)
+    public async Task SetDataAsync(Pose data, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        _pose = data;
     }
 }

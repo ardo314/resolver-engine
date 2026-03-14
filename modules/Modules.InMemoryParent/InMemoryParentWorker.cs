@@ -5,18 +5,18 @@ namespace Modules.InMemoryParent;
 
 public partial class InMemoryParentWorker : BehaviourWorker<IParent>
 {
-    public Task InitDataAsync(EntityId data, CancellationToken ct = default)
+    private EntityId? _parentId;
+
+    public async Task<EntityId> GetDataAsync(CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        if (_parentId is null)
+            throw new InvalidOperationException("Parent ID has not been set.");
+
+        return _parentId.Value;
     }
 
-    public Task<EntityId> GetDataAsync(CancellationToken ct = default)
+    public async Task SetDataAsync(EntityId data, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
-    }
-
-    public Task SetDataAsync(EntityId data, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
+        _parentId = data;
     }
 }
