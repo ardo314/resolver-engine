@@ -39,8 +39,8 @@ Engine.sln
 
 | Package | Version | Used by |
 |---|---|---|
-| `MessagePack` | 3.1.4 | Engine.ModuleRuntime |
-| `NATS.Net` | 2.7.2 | Engine.ModuleRuntime |
+| `MessagePack` | 3.1.4 | Engine.Backend, Engine.ModuleRuntime |
+| `NATS.Net` | 2.7.2 | Engine.Backend, Engine.ModuleRuntime |
 | `Microsoft.CodeAnalysis.CSharp` | 4.12.0 | Engine.Generators (planned) |
 | `Microsoft.CodeAnalysis.Analyzers` | 3.3.4 | Engine.Generators (planned) |
 
@@ -91,7 +91,8 @@ Engine.ModuleRuntime  ──references──▶ Engine.Core
                       ──analyzer────▶ Engine.Generators (planned)
                       ──packages────▶ NATS.Net, MessagePack
 
-Engine.Backend  (standalone executable, no project refs yet)
+Engine.Backend  ──references──▶ Engine.Core
+                ──packages────▶ NATS.Net, MessagePack
 
 Modules.InMemoryPose   ──references──▶ Engine.Core, Engine.Module, Engine.Math (planned)
 Modules.InMemoryParent ──references──▶ Engine.Core, Engine.Module, Engine.Hierarchy (planned)
@@ -107,10 +108,25 @@ Modules.InMemoryParent ──references──▶ Engine.Core, Engine.Module, Eng
 
 Two executable projects exist:
 
-1. **Engine.Backend** — the central server process. Currently a placeholder (`Console.WriteLine`).
+1. **Engine.Backend** — the central server process. Hosts the `WorldService` which manages entity lifecycles over NATS.
 2. **Engine.ModuleRuntime** — the module host process. Sets up a `CancellationTokenSource` tied to `Ctrl+C` and will load and run module workers, subscribing to NATS subjects for behaviour operations.
 
 Modules run inside the ModuleRuntime process, not as separate executables.
+
+## NATS Subject Conventions
+
+All service endpoints are exposed via NATS micro-services (`NatsSvcServer`). Subjects follow the pattern `<service>.<operation>`.
+
+### WorldService (`world`)
+
+| Subject | Request | Reply | Description |
+|---|---|---|---|
+| `world.create` | empty | EntityId (Guid string) | Create a new entity |
+| `world.destroy` | EntityId (Guid string) | `"ok"` or error | Destroy an existing entity |
+| `world.exists` | EntityId (Guid string) | `"true"` / `"false"` | Check if an entity exists |
+| `world.list` | empty | comma-separated EntityIds | List all entity IDs |
+
+Errors are returned via NATS service error replies with a numeric code and description.
 
 ## Conventions
 
