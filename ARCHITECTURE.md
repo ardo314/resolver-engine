@@ -78,7 +78,12 @@ Concrete workers (e.g., `InMemoryPoseWorker`, `InMemoryParentWorker`) extend thi
 
 ### World
 
-`World` (Engine.Module) is the top-level container that creates entities via `CreateEntityAsync`.
+`World` (Engine.Module) is the client-side proxy to the backend `WorldService`. It accepts an `INatsConnection` and forwards entity lifecycle operations over NATS request-reply:
+
+- `CreateEntityAsync` → `world.create` — returns a local `Entity` handle.
+- `DestroyEntityAsync` → `world.destroy` — removes an entity from the backend.
+- `EntityExistsAsync` → `world.exists` — checks if an entity exists.
+- `ListEntitiesAsync` → `world.list` — returns all known entity IDs.
 
 ## Project Dependency Graph
 
@@ -86,6 +91,7 @@ Concrete workers (e.g., `InMemoryPoseWorker`, `InMemoryParentWorker`) extend thi
 Engine.Core  (no dependencies)
     ↑
 Engine.Module  ──references──▶ Engine.Core
+               ──packages────▶ NATS.Net
     ↑
 Engine.ModuleRuntime  ──references──▶ Engine.Core
                       ──analyzer────▶ Engine.Generators (planned)
