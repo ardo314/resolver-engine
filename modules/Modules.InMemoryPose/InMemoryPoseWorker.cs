@@ -6,11 +6,6 @@ namespace Modules.InMemoryPose;
 
 public partial class InMemoryPoseWorker : BehaviourWorker<IPose>
 {
-    public Task InitDataAsync(Pose data, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
     public Task<Pose> GetDataAsync(CancellationToken ct = default)
     {
         throw new NotImplementedException();
