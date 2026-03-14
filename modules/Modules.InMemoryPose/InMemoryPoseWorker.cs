@@ -8,13 +8,14 @@ public partial class InMemoryPoseWorker : BehaviourWorker<IPose>
 {
     private Pose _pose = new Pose { Position = Vector3.Zero, Rotation = Quaternion.Identity };
 
-    public async Task<Pose> GetDataAsync(CancellationToken ct = default)
+    public Task<Pose> GetDataAsync(CancellationToken ct = default)
     {
-        return _pose;
+        return Task.FromResult(_pose);
     }
 
-    public async Task SetDataAsync(Pose data, CancellationToken ct = default)
+    public Task SetDataAsync(Pose data, CancellationToken ct = default)
     {
         _pose = data;
+        return Task.CompletedTask;
     }
 }

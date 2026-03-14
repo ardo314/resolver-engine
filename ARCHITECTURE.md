@@ -124,7 +124,13 @@ Modules.InMemoryParent ──references──▶ Engine.Core, Engine.Module, Eng
 Two executable projects exist:
 
 1. **Engine.Backend** — the central server process. Hosts the `EntityService` (entity lifecycles and behaviour tracking) over NATS.
-2. **Engine.ModuleRuntime** — the module host process. Sets up a `CancellationTokenSource` tied to `Ctrl+C` and will load and run module workers, subscribing to NATS subjects for behaviour operations.
+2. **Engine.ModuleRuntime** — the module host process. Sets up a `CancellationTokenSource` tied to `Ctrl+C`, discovers and loads module DLLs from a `modules/` directory relative to the executable, and instantiates all `BehaviourWorker<T>` types found in them.
+
+### Module Loading
+
+At startup the ModuleRuntime scans `{AppContext.BaseDirectory}/modules/` for `.dll` files. For each assembly it finds, it reflects over exported types and instantiates every concrete class that derives from `BehaviourWorker<T>`. Workers are created via parameterless constructors (`Activator.CreateInstance`).
+
+To deploy a module, copy its build output (DLL + dependencies) into the `modules/` sub-directory of the ModuleRuntime publish output.
 
 Modules run inside the ModuleRuntime process, not as separate executables.
 

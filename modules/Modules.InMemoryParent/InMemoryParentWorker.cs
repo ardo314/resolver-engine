@@ -7,16 +7,17 @@ public partial class InMemoryParentWorker : BehaviourWorker<IParent>
 {
     private EntityId? _parentId;
 
-    public async Task<EntityId> GetDataAsync(CancellationToken ct = default)
+    public Task<EntityId> GetDataAsync(CancellationToken ct = default)
     {
         if (_parentId is null)
             throw new InvalidOperationException("Parent ID has not been set.");
 
-        return _parentId.Value;
+        return Task.FromResult(_parentId.Value);
     }
 
-    public async Task SetDataAsync(EntityId data, CancellationToken ct = default)
+    public Task SetDataAsync(EntityId data, CancellationToken ct = default)
     {
         _parentId = data;
+        return Task.CompletedTask;
     }
 }
