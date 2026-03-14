@@ -1,6 +1,7 @@
 using System.Reflection;
 using Engine.Core;
 using Engine.Module;
+using NATS.Client.Core;
 
 var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
@@ -19,7 +20,8 @@ if (!Directory.Exists(modulesDir))
     return;
 }
 
-var workerInstances = new List<object>();
+// Registry: behaviour name → concrete worker Type
+var workerTypes = new Dictionary<string, Type>();
 
 foreach (var dllPath in Directory.EnumerateFiles(modulesDir, "*.dll"))
 {
@@ -43,22 +45,162 @@ foreach (var dllPath in Directory.EnumerateFiles(modulesDir, "*.dll"))
             continue;
 
         var behaviourType = GetBehaviourTypeArgument(type);
-        var instance = Activator.CreateInstance(type);
-
-        if (instance is null)
-        {
-            Console.WriteLine($"Failed to create instance of {type.FullName}");
+        if (behaviourType is null)
             continue;
-        }
 
-        workerInstances.Add(instance);
+        var behaviourName = behaviourType.Name;
+        workerTypes[behaviourName] = type;
         Console.WriteLine(
-            $"Loaded BehaviourWorker: {type.FullName} (behaviour: {behaviourType?.Name})"
+            $"Registered BehaviourWorker: {type.FullName} (behaviour: {behaviourName})"
         );
     }
 }
 
-Console.WriteLine($"Discovered {workerInstances.Count} behaviour worker(s).");
+Console.WriteLine($"Registered {workerTypes.Count} behaviour worker type(s).");
+
+// ── Connect to NATS and subscribe to worker lifecycle subjects ──────────
+
+await using var nats = new NatsConnection();
+await nats.ConnectAsync();
+
+// Tracks live worker instances keyed by (EntityId, behaviourName)
+var workers = new Dictionary<(EntityId, string), object>();
+
+// The non-generic base method for calling OnAddedAsync / OnRemovedAsync via reflection
+var onAddedMethod = typeof(BehaviourWorker<>).GetMethod(
+    nameof(BehaviourWorker<IBehaviour>.OnAddedAsync)
+)!;
+var onRemovedMethod = typeof(BehaviourWorker<>).GetMethod(
+    nameof(BehaviourWorker<IBehaviour>.OnRemovedAsync)
+)!;
+var entityIdProperty = typeof(BehaviourWorker<>).GetProperty(
+    nameof(BehaviourWorker<IBehaviour>.EntityId)
+)!;
+
+var subscriptions = new List<IAsyncDisposable>();
+
+foreach (var (behaviourName, workerType) in workerTypes)
+{
+    // Subscribe to worker.create.<behaviourName>
+    var createSub = await nats.SubscribeCoreAsync<string>(
+        $"worker.create.{behaviourName}",
+        cancellationToken: cts.Token
+    );
+    subscriptions.Add(createSub);
+
+    _ = Task.Run(
+        async () =>
+        {
+            await foreach (var msg in createSub.Msgs.ReadAllAsync(cts.Token))
+            {
+                try
+                {
+                    if (!Guid.TryParse(msg.Data, out var guid))
+                    {
+                        await msg.ReplyAsync("error: invalid EntityId format");
+                        continue;
+                    }
+
+                    var entityId = new EntityId(guid);
+                    var key = (entityId, behaviourName);
+
+                    if (workers.ContainsKey(key))
+                    {
+                        await msg.ReplyAsync("error: worker already exists for this entity");
+                        continue;
+                    }
+
+                    var instance = Activator.CreateInstance(workerType);
+                    if (instance is null)
+                    {
+                        await msg.ReplyAsync("error: failed to create worker instance");
+                        continue;
+                    }
+
+                    // Set EntityId property on the concrete BehaviourWorker<T>
+                    var concreteBaseType = GetBehaviourWorkerBaseType(workerType)!;
+                    concreteBaseType
+                        .GetProperty(nameof(BehaviourWorker<IBehaviour>.EntityId))!
+                        .SetValue(instance, entityId);
+
+                    // Call OnAddedAsync
+                    var concreteOnAdded = concreteBaseType.GetMethod(
+                        nameof(BehaviourWorker<IBehaviour>.OnAddedAsync)
+                    )!;
+                    var task = (Task)concreteOnAdded.Invoke(instance, [CancellationToken.None])!;
+                    await task;
+
+                    workers[key] = instance;
+                    Console.WriteLine(
+                        $"Created worker {workerType.FullName} for entity {entityId}"
+                    );
+                    await msg.ReplyAsync("ok");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error creating worker: {ex.Message}");
+                    await msg.ReplyAsync($"error: {ex.Message}");
+                }
+            }
+        },
+        cts.Token
+    );
+
+    // Subscribe to worker.remove.<behaviourName>
+    var removeSub = await nats.SubscribeCoreAsync<string>(
+        $"worker.remove.{behaviourName}",
+        cancellationToken: cts.Token
+    );
+    subscriptions.Add(removeSub);
+
+    _ = Task.Run(
+        async () =>
+        {
+            await foreach (var msg in removeSub.Msgs.ReadAllAsync(cts.Token))
+            {
+                try
+                {
+                    if (!Guid.TryParse(msg.Data, out var guid))
+                    {
+                        await msg.ReplyAsync("error: invalid EntityId format");
+                        continue;
+                    }
+
+                    var entityId = new EntityId(guid);
+                    var key = (entityId, behaviourName);
+
+                    if (!workers.TryGetValue(key, out var instance))
+                    {
+                        await msg.ReplyAsync("error: no worker found for this entity");
+                        continue;
+                    }
+
+                    // Call OnRemovedAsync
+                    var concreteBaseType = GetBehaviourWorkerBaseType(workerType)!;
+                    var concreteOnRemoved = concreteBaseType.GetMethod(
+                        nameof(BehaviourWorker<IBehaviour>.OnRemovedAsync)
+                    )!;
+                    var task = (Task)concreteOnRemoved.Invoke(instance, [CancellationToken.None])!;
+                    await task;
+
+                    workers.Remove(key);
+                    Console.WriteLine(
+                        $"Removed worker {workerType.FullName} for entity {entityId}"
+                    );
+                    await msg.ReplyAsync("ok");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error removing worker: {ex.Message}");
+                    await msg.ReplyAsync($"error: {ex.Message}");
+                }
+            }
+        },
+        cts.Token
+    );
+}
+
+Console.WriteLine("Engine.ModuleRuntime running – press Ctrl+C to stop.");
 
 try
 {
@@ -67,6 +209,11 @@ try
 catch (OperationCanceledException)
 {
     // Graceful shutdown
+}
+
+foreach (var sub in subscriptions)
+{
+    await sub.DisposeAsync();
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -104,6 +251,26 @@ static Type? GetBehaviourTypeArgument(Type workerType)
             && current.GetGenericTypeDefinition() == typeof(BehaviourWorker<>)
         )
             return current.GetGenericArguments()[0];
+
+        current = current.BaseType;
+    }
+
+    return null;
+}
+
+/// <summary>
+/// Returns the closed <c>BehaviourWorker&lt;T&gt;</c> base type for reflection calls.
+/// </summary>
+static Type? GetBehaviourWorkerBaseType(Type workerType)
+{
+    var current = workerType.BaseType;
+    while (current is not null)
+    {
+        if (
+            current.IsGenericType
+            && current.GetGenericTypeDefinition() == typeof(BehaviourWorker<>)
+        )
+            return current;
 
         current = current.BaseType;
     }

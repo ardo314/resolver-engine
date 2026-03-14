@@ -78,12 +78,13 @@ Behaviours are **interfaces only**; they carry no implementation. This allows di
 
 ### BehaviourWorker
 
-`BehaviourWorker<T>` (Engine.Module) is the abstract base class for module workers. It is generic over a behaviour interface `T : IBehaviour` and provides virtual lifecycle hooks:
+`BehaviourWorker<T>` (Engine.Module) is the abstract base class for module workers. It is generic over a behaviour interface `T : IBehaviour` and provides:
 
-- `OnAddedAsync(T behaviour, …)` — called when the behaviour is attached to an entity.
-- `OnRemovedAsync(T behaviour, …)` — called when the behaviour is removed.
+- `EntityId` property — set by the module runtime after construction to identify which entity this worker belongs to.
+- `OnAddedAsync(CancellationToken)` — called when the behaviour is attached to an entity.
+- `OnRemovedAsync(CancellationToken)` — called when the behaviour is removed.
 
-Concrete workers (e.g., `InMemoryPoseWorker`, `InMemoryParentWorker`) extend this base and implement the data access methods from `IDataBehaviour<T>`.
+Concrete workers (e.g., `InMemoryPoseWorker`, `InMemoryParentWorker`) extend this base and implement the data access methods from `IDataBehaviour<T>`. One worker instance is created per `(EntityId, behaviour)` pair.
 
 ### World
 
@@ -123,12 +124,27 @@ Modules.InMemoryParent ──references──▶ Engine.Core, Engine.Module, Eng
 
 Two executable projects exist:
 
-1. **Engine.Backend** — the central server process. Hosts the `EntityService` (entity lifecycles and behaviour tracking) over NATS.
-2. **Engine.ModuleRuntime** — the module host process. Sets up a `CancellationTokenSource` tied to `Ctrl+C`, discovers and loads module DLLs from a `modules/` directory relative to the executable, and instantiates all `BehaviourWorker<T>` types found in them.
+1. **Engine.Backend** — the central server process. Hosts the `EntityService` (entity lifecycles and behaviour tracking) over NATS. Acts as a two-phase orchestrator: when a behaviour is added or removed, the backend first sends a NATS request to the module runtime and only commits the change to the entity registry if the runtime responds successfully.
+2. **Engine.ModuleRuntime** — the module host process. Connects to NATS, discovers module DLLs, builds a type registry of `BehaviourWorker<T>` types, and subscribes to `worker.create.<name>` and `worker.remove.<name>` subjects to create/destroy worker instances on demand.
+
+### Behaviour Add Flow
+
+1. A module calls `Entity.AddBehaviourAsync<T>()`, which sends a request to `entity.add-behaviour`.
+2. The backend validates the request (entity exists, behaviour not already added).
+3. The backend sends a NATS request to `worker.create.<behaviourName>` with the `EntityId` as payload.
+4. The module runtime creates a new `BehaviourWorker<T>` instance, sets its `EntityId` property, calls `OnAddedAsync`, and replies `"ok"`.
+5. On success, the backend registers the behaviour in the `EntityRepository` and replies `"ok"` to the caller.
+6. On failure (no responders, timeout, or error), the backend replies with an error and does **not** register the behaviour.
+
+### Behaviour Remove Flow
+
+Same two-phase pattern: `entity.remove-behaviour` → `worker.remove.<behaviourName>` → `OnRemovedAsync` → remove from repository.
 
 ### Module Loading
 
-At startup the ModuleRuntime scans `{AppContext.BaseDirectory}/modules/` for `.dll` files. For each assembly it finds, it reflects over exported types and instantiates every concrete class that derives from `BehaviourWorker<T>`. Workers are created via parameterless constructors (`Activator.CreateInstance`).
+At startup the ModuleRuntime scans `{AppContext.BaseDirectory}/modules/` for `.dll` files. For each assembly it finds, it reflects over exported types and builds a **type registry** (`Dictionary<string, Type>`) mapping each behaviour name (e.g. `"IPose"`) to the concrete `BehaviourWorker<T>` type that handles it. No worker instances are created eagerly — they are instantiated on demand when `worker.create.<name>` requests arrive.
+
+Workers are created via parameterless constructors (`Activator.CreateInstance`). Live instances are tracked in a dictionary keyed by `(EntityId, behaviourName)` so they can be looked up for removal.
 
 To deploy a module, copy its build output (DLL + dependencies) into the `modules/` sub-directory of the ModuleRuntime publish output.
 
@@ -146,12 +162,19 @@ All service endpoints are exposed via NATS micro-services (`NatsSvcServer`). Sub
 | `entity.destroy` | EntityId (Guid string) | `"ok"` or error | Destroy an existing entity |
 | `entity.exists` | EntityId (Guid string) | `"true"` / `"false"` | Check if an entity exists |
 | `entity.list` | empty | comma-separated EntityIds | List all entity IDs |
-| `entity.add-behaviour` | `entityId:behaviourName` | `"ok"` or error | Add a behaviour to an entity |
-| `entity.remove-behaviour` | `entityId:behaviourName` | `"ok"` or error | Remove a behaviour from an entity |
+| `entity.add-behaviour` | `entityId:behaviourName` | `"ok"` or error | Add a behaviour to an entity (triggers `worker.create`) |
+| `entity.remove-behaviour` | `entityId:behaviourName` | `"ok"` or error | Remove a behaviour from an entity (triggers `worker.remove`) |
 | `entity.has-behaviour` | `entityId:behaviourName` | `"true"` / `"false"` or error | Check if an entity has a behaviour |
 | `entity.list-behaviours` | EntityId (Guid string) | comma-separated behaviour names | List behaviours on an entity |
 
-Errors are returned via NATS service error replies with a numeric code and description.
+### ModuleRuntime (worker lifecycle)
+
+| Subject | Request | Reply | Description |
+|---|---|---|---|
+| `worker.create.<behaviourName>` | EntityId (Guid string) | `"ok"` or error | Create a worker instance for the given entity and behaviour |
+| `worker.remove.<behaviourName>` | EntityId (Guid string) | `"ok"` or error | Remove the worker instance for the given entity and behaviour |
+
+Errors are returned via NATS service error replies with a numeric code and description, or as plain string error messages from the module runtime.
 
 ## Conventions
 

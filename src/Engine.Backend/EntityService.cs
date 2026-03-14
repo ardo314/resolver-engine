@@ -7,6 +7,10 @@ namespace Engine.Backend;
 /// <summary>
 /// Manages entity lifecycles and behaviour tracking, exposed as a NATS service.
 ///
+/// When adding or removing behaviours, the backend first sends a NATS request to the
+/// module runtime (worker.create / worker.remove) and only commits to the entity
+/// registry if the runtime responds successfully.
+///
 /// NATS subjects (under the "entity" service group):
 ///   entity.create           – request with empty payload, replies with the new EntityId (Guid string).
 ///   entity.destroy          – request with EntityId (Guid string), replies with "ok" or an error.
@@ -19,11 +23,13 @@ namespace Engine.Backend;
 /// </summary>
 public sealed class EntityService : IAsyncDisposable
 {
+    private readonly INatsConnection _nats;
     private readonly EntityRepository _repo;
     private readonly NatsSvcServer _svc;
 
     public EntityService(INatsConnection nats, EntityRepository repo, CancellationToken ct)
     {
+        _nats = nats;
         _repo = repo;
         _svc = new NatsSvcServer(nats, new NatsSvcConfig("entity", "1.0.0"), ct);
     }
@@ -116,6 +122,32 @@ public sealed class EntityService : IAsyncDisposable
             return;
         }
 
+        if (_repo.HasBehaviour(entityId, behaviourName))
+        {
+            await msg.ReplyErrorAsync(409, "Behaviour already added");
+            return;
+        }
+
+        // Request the module runtime to create a worker for this behaviour.
+        try
+        {
+            var workerReply = await _nats.RequestAsync<string, string>(
+                $"worker.create.{behaviourName}",
+                entityId.Value.ToString()
+            );
+
+            if (workerReply.Data is not "ok")
+            {
+                await msg.ReplyErrorAsync(502, $"Module runtime error: {workerReply.Data}");
+                return;
+            }
+        }
+        catch (NatsNoRespondersException)
+        {
+            await msg.ReplyErrorAsync(502, "No module handles this behaviour");
+            return;
+        }
+
         if (!_repo.AddBehaviour(entityId, behaviourName))
         {
             await msg.ReplyErrorAsync(409, "Behaviour already added");
@@ -136,6 +168,32 @@ public sealed class EntityService : IAsyncDisposable
         if (!_repo.Exists(entityId))
         {
             await msg.ReplyErrorAsync(404, "Entity not found");
+            return;
+        }
+
+        if (!_repo.HasBehaviour(entityId, behaviourName))
+        {
+            await msg.ReplyErrorAsync(404, "Behaviour not found on entity");
+            return;
+        }
+
+        // Request the module runtime to destroy the worker for this behaviour.
+        try
+        {
+            var workerReply = await _nats.RequestAsync<string, string>(
+                $"worker.remove.{behaviourName}",
+                entityId.Value.ToString()
+            );
+
+            if (workerReply.Data is not "ok")
+            {
+                await msg.ReplyErrorAsync(502, $"Module runtime error: {workerReply.Data}");
+                return;
+            }
+        }
+        catch (NatsNoRespondersException)
+        {
+            await msg.ReplyErrorAsync(502, "No module handles this behaviour");
             return;
         }
 

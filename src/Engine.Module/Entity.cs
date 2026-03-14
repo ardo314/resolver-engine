@@ -22,10 +22,7 @@ public sealed class Entity
     /// <summary>
     /// Registers a behaviour on this entity via the backend.
     /// </summary>
-    public async Task AddBehaviourAsync<TBehaviour>(
-        TBehaviour behaviour,
-        CancellationToken ct = default
-    )
+    public async Task AddBehaviourAsync<TBehaviour>(CancellationToken ct = default)
         where TBehaviour : IBehaviour
     {
         var payload = $"{Id.Value}:{BehaviourName<TBehaviour>()}";
