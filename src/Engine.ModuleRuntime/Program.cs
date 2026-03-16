@@ -11,7 +11,7 @@ Console.CancelKeyPress += (_, e) =>
     cts.Cancel();
 };
 
-// ── Load module assemblies and discover BehaviourWorkers ────────────────
+// ── Load module assemblies and discover ComponentWorkers ────────────────
 
 var modulesDir = Path.Combine(AppContext.BaseDirectory, "modules");
 
@@ -21,8 +21,11 @@ if (!Directory.Exists(modulesDir))
     return;
 }
 
-// Registry: behaviour name → concrete worker Type
+// Registry: marker struct name → concrete worker Type
 var workerTypes = new Dictionary<string, Type>();
+
+// Mapping: component interface name → marker struct name (for dispatch routing)
+var componentToStructName = new Dictionary<string, string>();
 
 foreach (var dllPath in Directory.EnumerateFiles(modulesDir, "*.dll"))
 {
@@ -42,49 +45,67 @@ foreach (var dllPath in Directory.EnumerateFiles(modulesDir, "*.dll"))
         if (type.IsAbstract || type.IsInterface)
             continue;
 
-        if (!IsBehaviourWorker(type))
+        if (!IsComponentWorker(type))
             continue;
 
-        var behaviourType = GetBehaviourTypeArgument(type);
-        if (behaviourType is null)
+        var markerStruct = GetMarkerStructArgument(type);
+        if (markerStruct is null)
             continue;
 
-        var behaviourName = behaviourType.Name;
-        workerTypes[behaviourName] = type;
-        Console.WriteLine(
-            $"Registered BehaviourWorker: {type.FullName} (behaviour: {behaviourName})"
-        );
+        var structName = markerStruct.Name;
+        workerTypes[structName] = type;
+
+        // Read [Has<>] attributes from the marker struct to discover component interfaces
+        var hasAttributes = markerStruct
+            .GetCustomAttributes(inherit: false)
+            .Where(a =>
+                a.GetType().IsGenericType
+                && a.GetType().GetGenericTypeDefinition() == typeof(HasAttribute<>)
+            )
+            .ToList();
+
+        foreach (var attr in hasAttributes)
+        {
+            var componentType = ((HasAttribute)attr).ComponentType;
+            componentToStructName[componentType.Name] = structName;
+            Console.WriteLine($"  Component interface: {componentType.Name} → {structName}");
+        }
+
+        Console.WriteLine($"Registered ComponentWorker: {type.FullName} (struct: {structName})");
     }
 }
 
-Console.WriteLine($"Registered {workerTypes.Count} behaviour worker type(s).");
+Console.WriteLine($"Registered {workerTypes.Count} component worker type(s).");
 
 // ── Connect to NATS and subscribe to worker lifecycle subjects ──────────
 
 await using var nats = new NatsConnection();
 await nats.ConnectAsync();
 
-// Tracks live worker instances keyed by (EntityId, behaviourName)
+// Tracks live worker instances keyed by (EntityId, structName)
 var workers = new Dictionary<(EntityId, string), object>();
 
-// The non-generic base method for calling OnAddedAsync / OnRemovedAsync via reflection
-var onAddedMethod = typeof(BehaviourWorker<>).GetMethod(
-    nameof(BehaviourWorker<IBehaviour>.OnAddedAsync)
-)!;
-var onRemovedMethod = typeof(BehaviourWorker<>).GetMethod(
-    nameof(BehaviourWorker<IBehaviour>.OnRemovedAsync)
-)!;
-var entityIdProperty = typeof(BehaviourWorker<>).GetProperty(
-    nameof(BehaviourWorker<IBehaviour>.EntityId)
-)!;
+// Tracks (EntityId, componentInterfaceName) → worker instance for dispatch routing
+var componentWorkers = new Dictionary<(EntityId, string), object>();
 
 var subscriptions = new List<IAsyncDisposable>();
 
-foreach (var (behaviourName, workerType) in workerTypes)
+foreach (var (structName, workerType) in workerTypes)
 {
-    // Subscribe to worker.create.<behaviourName>
+    // Collect the component interface names this struct provides
+    var markerStruct = GetMarkerStructArgument(workerType)!;
+    var interfaceNames = markerStruct
+        .GetCustomAttributes(inherit: false)
+        .Where(a =>
+            a.GetType().IsGenericType
+            && a.GetType().GetGenericTypeDefinition() == typeof(HasAttribute<>)
+        )
+        .Select(a => ((HasAttribute)a).ComponentType.Name)
+        .ToList();
+
+    // Subscribe to worker.create.<structName>
     var createSub = await nats.SubscribeCoreAsync<string>(
-        $"worker.create.{behaviourName}",
+        $"worker.create.{structName}",
         cancellationToken: cts.Token
     );
     subscriptions.Add(createSub);
@@ -103,7 +124,7 @@ foreach (var (behaviourName, workerType) in workerTypes)
                     }
 
                     var entityId = new EntityId(guid);
-                    var key = (entityId, behaviourName);
+                    var key = (entityId, structName);
 
                     if (workers.ContainsKey(key))
                     {
@@ -118,20 +139,27 @@ foreach (var (behaviourName, workerType) in workerTypes)
                         continue;
                     }
 
-                    // Set EntityId property on the concrete BehaviourWorker<T>
-                    var concreteBaseType = GetBehaviourWorkerBaseType(workerType)!;
+                    // Set EntityId property on the concrete ComponentWorker<T>
+                    var concreteBaseType = GetComponentWorkerBaseType(workerType)!;
                     concreteBaseType
-                        .GetProperty(nameof(BehaviourWorker<IBehaviour>.EntityId))!
+                        .GetProperty(nameof(ComponentWorker<int>.EntityId))!
                         .SetValue(instance, entityId);
 
                     // Call OnAddedAsync
                     var concreteOnAdded = concreteBaseType.GetMethod(
-                        nameof(BehaviourWorker<IBehaviour>.OnAddedAsync)
+                        nameof(ComponentWorker<int>.OnAddedAsync)
                     )!;
                     var task = (Task)concreteOnAdded.Invoke(instance, [CancellationToken.None])!;
                     await task;
 
                     workers[key] = instance;
+
+                    // Register for all component interfaces this struct provides
+                    foreach (var ifaceName in interfaceNames)
+                    {
+                        componentWorkers[(entityId, ifaceName)] = instance;
+                    }
+
                     Console.WriteLine(
                         $"Created worker {workerType.FullName} for entity {entityId}"
                     );
@@ -147,9 +175,9 @@ foreach (var (behaviourName, workerType) in workerTypes)
         cts.Token
     );
 
-    // Subscribe to worker.remove.<behaviourName>
+    // Subscribe to worker.remove.<structName>
     var removeSub = await nats.SubscribeCoreAsync<string>(
-        $"worker.remove.{behaviourName}",
+        $"worker.remove.{structName}",
         cancellationToken: cts.Token
     );
     subscriptions.Add(removeSub);
@@ -168,7 +196,7 @@ foreach (var (behaviourName, workerType) in workerTypes)
                     }
 
                     var entityId = new EntityId(guid);
-                    var key = (entityId, behaviourName);
+                    var key = (entityId, structName);
 
                     if (!workers.TryGetValue(key, out var instance))
                     {
@@ -177,14 +205,21 @@ foreach (var (behaviourName, workerType) in workerTypes)
                     }
 
                     // Call OnRemovedAsync
-                    var concreteBaseType = GetBehaviourWorkerBaseType(workerType)!;
+                    var concreteBaseType = GetComponentWorkerBaseType(workerType)!;
                     var concreteOnRemoved = concreteBaseType.GetMethod(
-                        nameof(BehaviourWorker<IBehaviour>.OnRemovedAsync)
+                        nameof(ComponentWorker<int>.OnRemovedAsync)
                     )!;
                     var task = (Task)concreteOnRemoved.Invoke(instance, [CancellationToken.None])!;
                     await task;
 
                     workers.Remove(key);
+
+                    // Unregister all component interfaces
+                    foreach (var ifaceName in interfaceNames)
+                    {
+                        componentWorkers.Remove((entityId, ifaceName));
+                    }
+
                     Console.WriteLine(
                         $"Removed worker {workerType.FullName} for entity {entityId}"
                     );
@@ -201,13 +236,16 @@ foreach (var (behaviourName, workerType) in workerTypes)
     );
 }
 
-// ── Subscribe to behaviour method dispatch subjects ─────────────────────
+// ── Subscribe to component method dispatch subjects ─────────────────────
 
-foreach (var (behaviourName, _) in workerTypes)
+// Build the set of unique component interface names to subscribe to
+var allComponentNames = componentToStructName.Keys.ToHashSet();
+
+foreach (var componentName in allComponentNames)
 {
-    // Subscribe to behaviour.<behaviourName>.> (wildcard for all methods)
+    // Subscribe to component.<componentName>.> (wildcard for all methods)
     var dispatchSub = await nats.SubscribeCoreAsync<byte[]>(
-        $"behaviour.{behaviourName}.*",
+        $"component.{componentName}.*",
         cancellationToken: cts.Token
     );
     subscriptions.Add(dispatchSub);
@@ -219,7 +257,7 @@ foreach (var (behaviourName, _) in workerTypes)
             {
                 try
                 {
-                    // Extract method name from subject: behaviour.<name>.<method>
+                    // Extract method name from subject: component.<name>.<method>
                     var subject = msg.Subject;
                     var lastDot = subject.LastIndexOf('.');
                     if (lastDot < 0)
@@ -263,8 +301,8 @@ foreach (var (behaviourName, _) in workerTypes)
                         dispatchPayload = ReadOnlyMemory<byte>.Empty;
                     }
 
-                    var key = (entityId, behaviourName);
-                    if (!workers.TryGetValue(key, out var instance))
+                    var key = (entityId, componentName);
+                    if (!componentWorkers.TryGetValue(key, out var instance))
                     {
                         await msg.ReplyAsync("error: no worker found for this entity");
                         continue;
@@ -277,6 +315,7 @@ foreach (var (behaviourName, _) in workerTypes)
                     }
 
                     var result = await dispatch.DispatchAsync(
+                        componentName,
                         methodName,
                         dispatchPayload,
                         cts.Token
@@ -293,7 +332,7 @@ foreach (var (behaviourName, _) in workerTypes)
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error dispatching behaviour method: {ex.Message}");
+                    Console.WriteLine($"Error dispatching component method: {ex.Message}");
                     await msg.ReplyAsync(
                         System.Text.Encoding.UTF8.GetBytes($"error: {ex.Message}")
                     );
@@ -323,16 +362,16 @@ foreach (var sub in subscriptions)
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Checks whether a type derives from <see cref="BehaviourWorker{T}"/> for some T.
+/// Checks whether a type derives from <see cref="ComponentWorker{T}"/> for some T.
 /// </summary>
-static bool IsBehaviourWorker(Type type)
+static bool IsComponentWorker(Type type)
 {
     var current = type.BaseType;
     while (current is not null)
     {
         if (
             current.IsGenericType
-            && current.GetGenericTypeDefinition() == typeof(BehaviourWorker<>)
+            && current.GetGenericTypeDefinition() == typeof(ComponentWorker<>)
         )
             return true;
 
@@ -343,16 +382,16 @@ static bool IsBehaviourWorker(Type type)
 }
 
 /// <summary>
-/// Extracts the <c>T</c> from the <see cref="BehaviourWorker{T}"/> base class.
+/// Extracts the marker struct <c>T</c> from the <see cref="ComponentWorker{T}"/> base class.
 /// </summary>
-static Type? GetBehaviourTypeArgument(Type workerType)
+static Type? GetMarkerStructArgument(Type workerType)
 {
     var current = workerType.BaseType;
     while (current is not null)
     {
         if (
             current.IsGenericType
-            && current.GetGenericTypeDefinition() == typeof(BehaviourWorker<>)
+            && current.GetGenericTypeDefinition() == typeof(ComponentWorker<>)
         )
             return current.GetGenericArguments()[0];
 
@@ -363,16 +402,16 @@ static Type? GetBehaviourTypeArgument(Type workerType)
 }
 
 /// <summary>
-/// Returns the closed <c>BehaviourWorker&lt;T&gt;</c> base type for reflection calls.
+/// Returns the closed <c>ComponentWorker&lt;T&gt;</c> base type for reflection calls.
 /// </summary>
-static Type? GetBehaviourWorkerBaseType(Type workerType)
+static Type? GetComponentWorkerBaseType(Type workerType)
 {
     var current = workerType.BaseType;
     while (current is not null)
     {
         if (
             current.IsGenericType
-            && current.GetGenericTypeDefinition() == typeof(BehaviourWorker<>)
+            && current.GetGenericTypeDefinition() == typeof(ComponentWorker<>)
         )
             return current;
 

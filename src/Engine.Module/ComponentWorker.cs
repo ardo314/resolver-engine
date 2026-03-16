@@ -2,8 +2,8 @@ using Engine.Core;
 
 namespace Engine.Module;
 
-public abstract class BehaviourWorker<T>
-    where T : IBehaviour
+public abstract class ComponentWorker<T>
+    where T : struct
 {
     public EntityId EntityId { get; private set; }
 

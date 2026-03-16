@@ -5,9 +5,9 @@ using NATS.Client.Services;
 namespace Engine.Backend;
 
 /// <summary>
-/// Manages entity lifecycles and behaviour tracking, exposed as a NATS service.
+/// Manages entity lifecycles and component tracking, exposed as a NATS service.
 ///
-/// When adding or removing behaviours, the backend first sends a NATS request to the
+/// When adding or removing components, the backend first sends a NATS request to the
 /// module runtime (worker.create / worker.remove) and only commits to the entity
 /// registry if the runtime responds successfully.
 ///
@@ -16,10 +16,10 @@ namespace Engine.Backend;
 ///   entity.destroy          – request with EntityId (Guid string), replies with "ok" or an error.
 ///   entity.exists           – request with EntityId (Guid string), replies with "true" / "false".
 ///   entity.list             – request with empty payload, replies with comma-separated EntityId list.
-///   entity.add-behaviour    – request "entityId:behaviourName", replies "ok" or error.
-///   entity.remove-behaviour – request "entityId:behaviourName", replies "ok" or error.
-///   entity.has-behaviour    – request "entityId:behaviourName", replies "true" / "false".
-///   entity.list-behaviours  – request EntityId (Guid string), replies comma-separated names.
+///   entity.add-component    – request "entityId:componentName", replies "ok" or error.
+///   entity.remove-component – request "entityId:componentName", replies "ok" or error.
+///   entity.has-component    – request "entityId:componentName", replies "true" / "false".
+///   entity.list-components  – request EntityId (Guid string), replies comma-separated names.
 /// </summary>
 public sealed class EntityService : IAsyncDisposable
 {
@@ -47,16 +47,16 @@ public sealed class EntityService : IAsyncDisposable
         await grp.AddEndpointAsync<string>(name: "exists", handler: HandleExistsAsync);
         await grp.AddEndpointAsync<byte[]>(name: "list", handler: HandleListAsync);
 
-        // Behaviour management
-        await grp.AddEndpointAsync<string>(name: "add-behaviour", handler: HandleAddBehaviourAsync);
+        // Component management
+        await grp.AddEndpointAsync<string>(name: "add-component", handler: HandleAddComponentAsync);
         await grp.AddEndpointAsync<string>(
-            name: "remove-behaviour",
-            handler: HandleRemoveBehaviourAsync
+            name: "remove-component",
+            handler: HandleRemoveComponentAsync
         );
-        await grp.AddEndpointAsync<string>(name: "has-behaviour", handler: HandleHasBehaviourAsync);
+        await grp.AddEndpointAsync<string>(name: "has-component", handler: HandleHasComponentAsync);
         await grp.AddEndpointAsync<string>(
-            name: "list-behaviours",
-            handler: HandleListBehavioursAsync
+            name: "list-components",
+            handler: HandleListComponentsAsync
         );
     }
 
@@ -77,21 +77,21 @@ public sealed class EntityService : IAsyncDisposable
         }
 
         var id = new EntityId(guid);
-        var behaviours = _repo.Destroy(id);
+        var components = _repo.Destroy(id);
 
-        if (behaviours is null)
+        if (components is null)
         {
             await msg.ReplyErrorAsync(404, "Entity not found");
             return;
         }
 
         // Tear down all workers that were instantiated for this entity.
-        foreach (var behaviourName in behaviours)
+        foreach (var componentName in components)
         {
             try
             {
                 await _nats.RequestAsync<string, string>(
-                    $"worker.remove.{behaviourName}",
+                    $"worker.remove.{componentName}",
                     id.Value.ToString()
                 );
             }
@@ -123,13 +123,13 @@ public sealed class EntityService : IAsyncDisposable
         await msg.ReplyAsync(ids);
     }
 
-    // ── Behaviour management ────────────────────────────────────────────
+    // ── Component management ────────────────────────────────────────────
 
-    private async ValueTask HandleAddBehaviourAsync(NatsSvcMsg<string> msg)
+    private async ValueTask HandleAddComponentAsync(NatsSvcMsg<string> msg)
     {
-        if (!TryParseRequest(msg.Data, out var entityId, out var behaviourName))
+        if (!TryParseRequest(msg.Data, out var entityId, out var componentName))
         {
-            await msg.ReplyErrorAsync(400, "Expected format: entityId:behaviourName");
+            await msg.ReplyErrorAsync(400, "Expected format: entityId:componentName");
             return;
         }
 
@@ -139,17 +139,17 @@ public sealed class EntityService : IAsyncDisposable
             return;
         }
 
-        if (_repo.HasBehaviour(entityId, behaviourName))
+        if (_repo.HasComponent(entityId, componentName))
         {
-            await msg.ReplyErrorAsync(409, "Behaviour already added");
+            await msg.ReplyErrorAsync(409, "Component already added");
             return;
         }
 
-        // Request the module runtime to create a worker for this behaviour.
+        // Request the module runtime to create a worker for this component.
         try
         {
             var workerReply = await _nats.RequestAsync<string, string>(
-                $"worker.create.{behaviourName}",
+                $"worker.create.{componentName}",
                 entityId.Value.ToString()
             );
 
@@ -161,24 +161,24 @@ public sealed class EntityService : IAsyncDisposable
         }
         catch (NatsNoRespondersException)
         {
-            await msg.ReplyErrorAsync(502, "No module handles this behaviour");
+            await msg.ReplyErrorAsync(502, "No module handles this component");
             return;
         }
 
-        if (!_repo.AddBehaviour(entityId, behaviourName))
+        if (!_repo.AddComponent(entityId, componentName))
         {
-            await msg.ReplyErrorAsync(409, "Behaviour already added");
+            await msg.ReplyErrorAsync(409, "Component already added");
             return;
         }
 
         await msg.ReplyAsync("ok");
     }
 
-    private async ValueTask HandleRemoveBehaviourAsync(NatsSvcMsg<string> msg)
+    private async ValueTask HandleRemoveComponentAsync(NatsSvcMsg<string> msg)
     {
-        if (!TryParseRequest(msg.Data, out var entityId, out var behaviourName))
+        if (!TryParseRequest(msg.Data, out var entityId, out var componentName))
         {
-            await msg.ReplyErrorAsync(400, "Expected format: entityId:behaviourName");
+            await msg.ReplyErrorAsync(400, "Expected format: entityId:componentName");
             return;
         }
 
@@ -188,17 +188,17 @@ public sealed class EntityService : IAsyncDisposable
             return;
         }
 
-        if (!_repo.HasBehaviour(entityId, behaviourName))
+        if (!_repo.HasComponent(entityId, componentName))
         {
-            await msg.ReplyErrorAsync(404, "Behaviour not found on entity");
+            await msg.ReplyErrorAsync(404, "Component not found on entity");
             return;
         }
 
-        // Request the module runtime to destroy the worker for this behaviour.
+        // Request the module runtime to destroy the worker for this component.
         try
         {
             var workerReply = await _nats.RequestAsync<string, string>(
-                $"worker.remove.{behaviourName}",
+                $"worker.remove.{componentName}",
                 entityId.Value.ToString()
             );
 
@@ -210,24 +210,24 @@ public sealed class EntityService : IAsyncDisposable
         }
         catch (NatsNoRespondersException)
         {
-            await msg.ReplyErrorAsync(502, "No module handles this behaviour");
+            await msg.ReplyErrorAsync(502, "No module handles this component");
             return;
         }
 
-        if (!_repo.RemoveBehaviour(entityId, behaviourName))
+        if (!_repo.RemoveComponent(entityId, componentName))
         {
-            await msg.ReplyErrorAsync(404, "Behaviour not found on entity");
+            await msg.ReplyErrorAsync(404, "Component not found on entity");
             return;
         }
 
         await msg.ReplyAsync("ok");
     }
 
-    private async ValueTask HandleHasBehaviourAsync(NatsSvcMsg<string> msg)
+    private async ValueTask HandleHasComponentAsync(NatsSvcMsg<string> msg)
     {
-        if (!TryParseRequest(msg.Data, out var entityId, out var behaviourName))
+        if (!TryParseRequest(msg.Data, out var entityId, out var componentName))
         {
-            await msg.ReplyErrorAsync(400, "Expected format: entityId:behaviourName");
+            await msg.ReplyErrorAsync(400, "Expected format: entityId:componentName");
             return;
         }
 
@@ -237,11 +237,11 @@ public sealed class EntityService : IAsyncDisposable
             return;
         }
 
-        var has = _repo.HasBehaviour(entityId, behaviourName);
+        var has = _repo.HasComponent(entityId, componentName);
         await msg.ReplyAsync(has ? "true" : "false");
     }
 
-    private async ValueTask HandleListBehavioursAsync(NatsSvcMsg<string> msg)
+    private async ValueTask HandleListComponentsAsync(NatsSvcMsg<string> msg)
     {
         if (!Guid.TryParse(msg.Data, out var guid))
         {
@@ -257,18 +257,18 @@ public sealed class EntityService : IAsyncDisposable
             return;
         }
 
-        var names = _repo.ListBehaviours(entityId);
+        var names = _repo.ListComponents(entityId);
         await msg.ReplyAsync(string.Join(",", names));
     }
 
     private static bool TryParseRequest(
         string? data,
         out EntityId entityId,
-        out string behaviourName
+        out string componentName
     )
     {
         entityId = default;
-        behaviourName = string.Empty;
+        componentName = string.Empty;
 
         if (string.IsNullOrEmpty(data))
             return false;
@@ -280,8 +280,8 @@ public sealed class EntityService : IAsyncDisposable
         if (!Guid.TryParse(data.AsSpan(0, sep), out var guid))
             return false;
 
-        behaviourName = data[(sep + 1)..];
-        if (string.IsNullOrWhiteSpace(behaviourName))
+        componentName = data[(sep + 1)..];
+        if (string.IsNullOrWhiteSpace(componentName))
             return false;
 
         entityId = new EntityId(guid);

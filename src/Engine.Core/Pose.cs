@@ -8,4 +8,4 @@ public struct Pose
     public Quaternion Rotation { get; init; }
 }
 
-public interface IPose : IDataBehaviour<Pose> { }
+public interface IPose : IDataComponent<Pose> { }

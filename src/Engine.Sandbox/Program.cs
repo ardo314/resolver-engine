@@ -1,5 +1,6 @@
 using Engine.Client;
 using Engine.Core;
+using Modules.InMemoryParent.Core;
 using NATS.Client.Core;
 
 Console.WriteLine("Engine.Sandbox starting…");
@@ -17,10 +18,10 @@ Console.WriteLine("Connected to NATS. Ready to experiment!");
 var entity = await world.CreateEntityAsync();
 Console.WriteLine($"Created entity {entity.Id}");
 
-await entity.AddBehaviourAsync<IParent>();
+await entity.AddComponentAsync<InMemoryParent>();
 
-var behaviours = await entity.ListBehavioursAsync();
-Console.WriteLine($"Entity {entity.Id} behaviours: {string.Join(", ", behaviours)}");
+var components = await entity.ListComponentsAsync();
+Console.WriteLine($"Entity {entity.Id} components: {string.Join(", ", components)}");
 
 var entities = await world.ListEntitiesAsync();
 Console.WriteLine($"Current entities: {string.Join(", ", entities)}");

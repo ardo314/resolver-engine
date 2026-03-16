@@ -4,7 +4,7 @@ using Engine.Core;
 namespace Engine.Backend;
 
 /// <summary>
-/// Central in-memory store for entity existence and per-entity behaviour sets.
+/// Central in-memory store for entity existence and per-entity component sets.
 /// Shared by <see cref="WorldService"/> and <see cref="EntityService"/>.
 /// </summary>
 public sealed class EntityRepository
@@ -21,8 +21,8 @@ public sealed class EntityRepository
     }
 
     /// <summary>
-    /// Removes an entity and all of its behaviours.
-    /// Returns the list of behaviour names that were attached, or <c>null</c> if the entity did not exist.
+    /// Removes an entity and all of its components.
+    /// Returns the list of component names that were attached, or <c>null</c> if the entity did not exist.
     /// </summary>
     public ICollection<string>? Destroy(EntityId id)
     {
@@ -38,32 +38,32 @@ public sealed class EntityRepository
     /// <summary>Returns all known entity ids.</summary>
     public ICollection<EntityId> ListAll() => _entities.Keys;
 
-    /// <summary>Adds a behaviour to an entity. Returns false if already present.</summary>
-    public bool AddBehaviour(EntityId id, string behaviourName)
+    /// <summary>Adds a component to an entity. Returns false if already present.</summary>
+    public bool AddComponent(EntityId id, string componentName)
     {
         if (!_entities.TryGetValue(id, out var set))
             return false;
 
-        return set.TryAdd(behaviourName, 0);
+        return set.TryAdd(componentName, 0);
     }
 
-    /// <summary>Removes a behaviour from an entity. Returns false if not found.</summary>
-    public bool RemoveBehaviour(EntityId id, string behaviourName)
+    /// <summary>Removes a component from an entity. Returns false if not found.</summary>
+    public bool RemoveComponent(EntityId id, string componentName)
     {
         if (!_entities.TryGetValue(id, out var set))
             return false;
 
-        return set.TryRemove(behaviourName, out _);
+        return set.TryRemove(componentName, out _);
     }
 
-    /// <summary>Checks whether an entity has a given behaviour.</summary>
-    public bool HasBehaviour(EntityId id, string behaviourName)
+    /// <summary>Checks whether an entity has a given component.</summary>
+    public bool HasComponent(EntityId id, string componentName)
     {
-        return _entities.TryGetValue(id, out var set) && set.ContainsKey(behaviourName);
+        return _entities.TryGetValue(id, out var set) && set.ContainsKey(componentName);
     }
 
-    /// <summary>Returns the behaviour names for an entity, or an empty collection if none.</summary>
-    public ICollection<string> ListBehaviours(EntityId id)
+    /// <summary>Returns the component names for an entity, or an empty collection if none.</summary>
+    public ICollection<string> ListComponents(EntityId id)
     {
         if (_entities.TryGetValue(id, out var set))
             return set.Keys;
