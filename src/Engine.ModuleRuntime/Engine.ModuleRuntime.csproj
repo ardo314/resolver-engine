@@ -9,6 +9,5 @@
 
   <ItemGroup>
     <PackageReference Include="MessagePack" />
-    <PackageReference Include="NATS.Net" />
   </ItemGroup>
 </Project>

@@ -4,8 +4,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Engine.Client\Engine.Client.csproj" />
-    <ProjectReference Include="..\Engine.Core\Engine.Core.csproj" />
     <ProjectReference Include="..\..\modules\Modules.InMemoryParent.Core\Modules.InMemoryParent.Core.csproj" />
     <ProjectReference Include="..\..\modules\Modules.InMemoryPose.Core\Modules.InMemoryPose.Core.csproj" />
     <ProjectReference Include="..\..\modules\Modules.InMemoryParent\Modules.InMemoryParent.csproj" />

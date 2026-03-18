@@ -1,16 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Engine.Core\Engine.Core.csproj" />
     <ProjectReference Include="..\..\src\Engine.Module\Engine.Module.csproj" />
     <ProjectReference Include="..\Modules.InMemoryParent.Core\Modules.InMemoryParent.Core.csproj" />
-    <ProjectReference
-      Include="..\..\src\Engine.Generators\Engine.Generators.csproj"
-      OutputItemType="Analyzer"
-      ReferenceOutputAssembly="false"
-    />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="MessagePack" />
   </ItemGroup>
 </Project>
