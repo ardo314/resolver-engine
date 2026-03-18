@@ -1,4 +1,4 @@
-namespace Engine.Core;
+namespace Engine.Client;
 
 /// <summary>
 /// Marker interface for behaviour contracts.

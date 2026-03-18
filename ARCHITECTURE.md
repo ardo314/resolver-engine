@@ -9,8 +9,8 @@ Resolver Engine is an **Entity-Component-Behaviour** engine built with .NET 9 an
 ```
 Engine.sln
 ├── src/                              # Core libraries and executables
-│   ├── Engine.Core                   # Shared contracts (IComponent, IBehaviour, value types, HasAttribute)
-│   ├── Engine.Client                 # Client-side proxies (Entity, World)
+│   ├── Engine.Core                   # Shared value types (EntityId)
+│   ├── Engine.Client                 # Client-side proxies (Entity, World) and contracts (IComponent, IBehaviour, HasAttribute, value types)
 │   ├── Engine.Generators             # Roslyn source generator (analyzer)
 │   ├── Engine.Module                 # Module-side abstractions (ComponentWorker, IDataDispatch)
 │   ├── Engine.ModuleRuntime          # Executable host for running modules
@@ -77,9 +77,11 @@ A **component** is a concrete marker struct that implements `IComponent` and dec
 
 Components are structs that represent a named, deployable unit of functionality. They carry no data or logic themselves — they serve as type-level identifiers for adding/removing functionality to entities.
 
+`IComponent`, `HasAttribute<T>`, and all behaviour interfaces live in **Engine.Client** so they can be shared between client, module, and module-core code without requiring a dependency on the backend.
+
 ### Behaviour
 
-A **behaviour** is a data/logic contract defined as an interface in Engine.Core.
+A **behaviour** is a data/logic contract defined as an interface in Engine.Client.
 
 - `IBehaviour` — marker interface; all behaviours implement this.
 - `IDataBehaviour<T> : IBehaviour` — a convenience base for behaviours that hold typed data with async `GetDataAsync` and `SetDataAsync` methods.
@@ -115,7 +117,7 @@ Component structs live in `Modules.<Name>.Core` projects so they can be shared b
 
 ### `HasAttribute<T>`
 
-`HasAttribute<T>` (Engine.Core) is a generic attribute with an abstract base class for runtime reflection:
+`HasAttribute<T>` (Engine.Client) is a generic attribute with an abstract base class for runtime reflection:
 
 ```csharp
 [AttributeUsage(AttributeTargets.Struct, AllowMultiple = true)]
@@ -177,7 +179,7 @@ All proxy classes accept an `EntityId` and `INatsConnection` in their constructo
 ## Project Dependency Graph
 
 ```
-Engine.Core  (no dependencies)
+Engine.Core  (no dependencies — contains EntityId only)
     ↑
 Engine.Generators  ──packages──▶ Microsoft.CodeAnalysis.CSharp
 
@@ -195,8 +197,8 @@ Engine.Sandbox  ──references──▶ Engine.Core, Engine.Client, Modules.In
 Engine.Backend  ──references──▶ Engine.Core
                 ──packages────▶ NATS.Net, MessagePack
 
-Modules.InMemoryPose.Core   ──references──▶ Engine.Core
-Modules.InMemoryParent.Core ──references──▶ Engine.Core
+Modules.InMemoryPose.Core   ──references──▶ Engine.Client
+Modules.InMemoryParent.Core ──references──▶ Engine.Client
 
 Modules.InMemoryPose   ──references──▶ Engine.Core, Engine.Module, Modules.InMemoryPose.Core
                        ──analyzer────▶ Engine.Generators
@@ -291,7 +293,7 @@ Errors are returned via NATS service error replies with a numeric code and descr
 
 ## Conventions
 
-- All behaviour interfaces live in **Engine.Core** so they can be shared between backend and module code without circular dependencies.
+- All behaviour interfaces and component contracts (`IComponent`, `IBehaviour`, `HasAttribute<T>`, `IProxy`, `IDataBehaviour<T>`) live in **Engine.Client** so they can be shared between client, module, and module-core code without depending on the backend. **Engine.Core** contains only `EntityId`, the minimal shared identity type needed by the backend.
 - Each module has a **`.Core` project** (e.g. `Modules.InMemoryPose.Core`) containing the component struct with `[Has<>]` attributes and `IComponent` implementation. This project is shared between client and worker code.
 - Module worker projects live under the `modules/` folder and reference Engine.Core, Engine.Module, and their `.Core` project.
 - Module worker classes are `partial` to support source generation.

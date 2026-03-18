@@ -1,5 +1,5 @@
 using System.Numerics;
-using Engine.Core;
+using Engine.Client;
 using Engine.Module;
 using Modules.InMemoryPose.Core;
 

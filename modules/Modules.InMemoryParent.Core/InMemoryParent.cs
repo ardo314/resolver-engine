@@ -1,4 +1,4 @@
-using Engine.Core;
+using Engine.Client;
 
 namespace Modules.InMemoryParent.Core;
 

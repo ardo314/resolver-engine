@@ -11,10 +11,10 @@ namespace Engine.Generators;
 public sealed class ComponentProxyGenerator : IIncrementalGenerator
 {
     // Fully qualified names we look for in the compilation.
-    private const string IComponentFqn = "Engine.Core.IComponent";
-    private const string IBehaviourFqn = "Engine.Core.IBehaviour";
+    private const string IComponentFqn = "Engine.Client.IComponent";
+    private const string IBehaviourFqn = "Engine.Client.IBehaviour";
     private const string ComponentWorkerFqn = "Engine.Module.ComponentWorker";
-    private const string HasAttributeFqn = "Engine.Core.HasAttribute";
+    private const string HasAttributeFqn = "Engine.Client.HasAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -503,7 +503,7 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
         sb.AppendLine($"/// Auto-generated NATS proxy for <see cref=\"{info.InterfaceName}\"/>.");
         sb.AppendLine($"/// </summary>");
         sb.AppendLine(
-            $"public sealed class {info.ProxyName} : {info.InterfaceFullName}, Engine.Core.IProxy"
+            $"public sealed class {info.ProxyName} : {info.InterfaceFullName}, Engine.Client.IProxy"
         );
         sb.AppendLine("{");
         sb.AppendLine("    private readonly EntityId _entityId;");
@@ -637,7 +637,7 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
         // Implement all behaviour interfaces + IProxy
         var interfaceList = string.Join(
             ", ",
-            info.BehaviourInterfaces.Select(c => c.InterfaceFullName).Append("Engine.Core.IProxy")
+            info.BehaviourInterfaces.Select(c => c.InterfaceFullName).Append("Engine.Client.IProxy")
         );
         sb.AppendLine($"public sealed class {info.ProxyName} : {interfaceList}");
         sb.AppendLine("{");

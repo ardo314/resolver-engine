@@ -1,3 +1,3 @@
-namespace Engine.Core;
+namespace Engine.Client;
 
 public interface IComponent { }

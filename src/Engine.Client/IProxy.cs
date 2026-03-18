@@ -1,4 +1,4 @@
-namespace Engine.Core;
+namespace Engine.Client;
 
 /// <summary>
 /// Marker interface for all generated client-side proxies.

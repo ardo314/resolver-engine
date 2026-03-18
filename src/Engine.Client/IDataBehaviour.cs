@@ -1,4 +1,4 @@
-namespace Engine.Core;
+namespace Engine.Client;
 
 /// <summary>
 /// Convenience base for behaviours that hold typed data with async get/set methods.

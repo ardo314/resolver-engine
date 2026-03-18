@@ -1,4 +1,5 @@
 using System.Reflection;
+using Engine.Client;
 using Engine.Core;
 using Engine.Module;
 using MessagePack;

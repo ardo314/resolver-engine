@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Engine.Core;
+namespace Engine.Client;
 
 public struct Pose
 {

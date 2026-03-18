@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Engine.Core\Engine.Core.csproj" />
+    <ProjectReference Include="..\..\src\Engine.Client\Engine.Client.csproj" />
   </ItemGroup>
 </Project>

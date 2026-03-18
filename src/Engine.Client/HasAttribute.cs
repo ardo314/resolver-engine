@@ -1,4 +1,4 @@
-namespace Engine.Core;
+namespace Engine.Client;
 
 /// <summary>
 /// Base class for the generic <see cref="HasAttribute{T}"/> attribute.
