@@ -2,5 +2,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Engine.Module\Engine.Module.csproj" />
     <ProjectReference Include="..\Modules.InMemoryPose.Core\Modules.InMemoryPose.Core.csproj" />
+    <ProjectReference
+      Include="..\..\src\Engine.Generators\Engine.Generators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false"
+    />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MessagePack" />
   </ItemGroup>
 </Project>
