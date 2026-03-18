@@ -12,6 +12,7 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
 {
     // Fully qualified names we look for in the compilation.
     private const string IComponentFqn = "Engine.Core.IComponent";
+    private const string IBehaviourFqn = "Engine.Core.IBehaviour";
     private const string ComponentWorkerFqn = "Engine.Module.ComponentWorker";
     private const string HasAttributeFqn = "Engine.Core.HasAttribute";
 
@@ -99,12 +100,12 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
         var componentInterfaces = context.CompilationProvider.SelectMany(
             (compilation, ct) =>
             {
-                var iComponent = compilation.GetTypeByMetadataName(IComponentFqn);
-                if (iComponent is null)
+                var iBehaviour = compilation.GetTypeByMetadataName(IBehaviourFqn);
+                if (iBehaviour is null)
                     return ImmutableArray<ComponentInterfaceInfo>.Empty;
 
                 var results = ImmutableArray.CreateBuilder<ComponentInterfaceInfo>();
-                CollectComponentInterfaces(compilation.GlobalNamespace, iComponent, results, ct);
+                CollectComponentInterfaces(compilation.GlobalNamespace, iBehaviour, results, ct);
                 return results.ToImmutable();
             }
         );
@@ -185,24 +186,24 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
         Compilation compilation
     )
     {
-        var iComponent = compilation.GetTypeByMetadataName(IComponentFqn);
+        var iBehaviour = compilation.GetTypeByMetadataName(IBehaviourFqn);
         var builder = ImmutableArray.CreateBuilder<MethodInfo>();
         var seen = new HashSet<string>();
 
-        CollectMethodsFromInterface(componentInterface, iComponent, builder, seen);
+        CollectMethodsFromInterface(componentInterface, iBehaviour, builder, seen);
 
         return builder.ToImmutable();
     }
 
     private static void CollectMethodsFromInterface(
         INamedTypeSymbol iface,
-        INamedTypeSymbol? iComponent,
+        INamedTypeSymbol? iBehaviour,
         ImmutableArray<MethodInfo>.Builder builder,
         HashSet<string> seen
     )
     {
-        // Skip IComponent itself — it's a marker with no methods.
-        if (iComponent is not null && SymbolEqualityComparer.Default.Equals(iface, iComponent))
+        // Skip IBehaviour itself — it's a marker with no methods.
+        if (iBehaviour is not null && SymbolEqualityComparer.Default.Equals(iface, iBehaviour))
             return;
 
         foreach (var member in iface.GetMembers())
@@ -245,7 +246,7 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
         // Recurse into base interfaces.
         foreach (var baseIface in iface.Interfaces)
         {
-            CollectMethodsFromInterface(baseIface, iComponent, builder, seen);
+            CollectMethodsFromInterface(baseIface, iBehaviour, builder, seen);
         }
     }
 
@@ -269,7 +270,7 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
 
     private static void CollectComponentInterfaces(
         INamespaceSymbol ns,
-        INamedTypeSymbol iComponent,
+        INamedTypeSymbol iBehaviour,
         ImmutableArray<ComponentInterfaceInfo>.Builder results,
         System.Threading.CancellationToken ct
     )
@@ -280,20 +281,20 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
         {
             if (type.TypeKind != TypeKind.Interface)
                 continue;
-            if (SymbolEqualityComparer.Default.Equals(type, iComponent))
+            if (SymbolEqualityComparer.Default.Equals(type, iBehaviour))
                 continue;
 
-            // Check if this interface extends IComponent (directly or transitively).
-            if (!ImplementsInterface(type, iComponent))
+            // Check if this interface extends IBehaviour (directly or transitively).
+            if (!ImplementsInterface(type, iBehaviour))
                 continue;
 
-            // Skip IDataComponent<T> itself — it's a base convenience interface, not a concrete component.
-            if (type.IsGenericType && type.Name == "IDataComponent")
+            // Skip IDataBehaviour<T> itself — it's a base convenience interface, not a concrete behaviour.
+            if (type.IsGenericType && type.Name == "IDataBehaviour")
                 continue;
 
             var methods = ImmutableArray.CreateBuilder<MethodInfo>();
             var seen = new HashSet<string>();
-            CollectMethodsFromInterface(type, iComponent, methods, seen);
+            CollectMethodsFromInterface(type, iBehaviour, methods, seen);
 
             if (methods.Count == 0)
                 continue;
@@ -319,7 +320,7 @@ public sealed class ComponentProxyGenerator : IIncrementalGenerator
 
         foreach (var childNs in ns.GetNamespaceMembers())
         {
-            CollectComponentInterfaces(childNs, iComponent, results, ct);
+            CollectComponentInterfaces(childNs, iBehaviour, results, ct);
         }
     }
 

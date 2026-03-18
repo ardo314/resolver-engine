@@ -8,19 +8,19 @@ namespace Engine.Core;
 public abstract class HasAttribute : Attribute
 {
     /// <summary>
-    /// The component interface type this struct provides.
+    /// The behaviour interface type this struct provides.
     /// </summary>
     public abstract Type ComponentType { get; }
 }
 
 /// <summary>
-/// Marks a component marker struct as providing the given <typeparamref name="T"/> component interface.
+/// Marks a component marker struct as providing the given <typeparamref name="T"/> behaviour interface.
 /// Used by the source generator to determine which interfaces a worker must implement,
 /// and by the client-side <c>AddComponentAsync</c> to discover component names at runtime.
 /// </summary>
 [AttributeUsage(AttributeTargets.Struct, AllowMultiple = true, Inherited = false)]
 public sealed class HasAttribute<T> : HasAttribute
-    where T : IComponent
+    where T : IBehaviour
 {
     public override Type ComponentType => typeof(T);
 }

@@ -141,14 +141,10 @@ foreach (var (structName, workerType) in workerTypes)
 
                     // Set EntityId property on the concrete ComponentWorker<T>
                     var concreteBaseType = GetComponentWorkerBaseType(workerType)!;
-                    concreteBaseType
-                        .GetProperty(nameof(ComponentWorker<int>.EntityId))!
-                        .SetValue(instance, entityId);
+                    concreteBaseType.GetProperty("EntityId")!.SetValue(instance, entityId);
 
                     // Call OnAddedAsync
-                    var concreteOnAdded = concreteBaseType.GetMethod(
-                        nameof(ComponentWorker<int>.OnAddedAsync)
-                    )!;
+                    var concreteOnAdded = concreteBaseType.GetMethod("OnAddedAsync")!;
                     var task = (Task)concreteOnAdded.Invoke(instance, [CancellationToken.None])!;
                     await task;
 
@@ -206,9 +202,7 @@ foreach (var (structName, workerType) in workerTypes)
 
                     // Call OnRemovedAsync
                     var concreteBaseType = GetComponentWorkerBaseType(workerType)!;
-                    var concreteOnRemoved = concreteBaseType.GetMethod(
-                        nameof(ComponentWorker<int>.OnRemovedAsync)
-                    )!;
+                    var concreteOnRemoved = concreteBaseType.GetMethod("OnRemovedAsync")!;
                     var task = (Task)concreteOnRemoved.Invoke(instance, [CancellationToken.None])!;
                     await task;
 

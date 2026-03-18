@@ -30,7 +30,7 @@ public sealed class Entity
     /// attributes indicating which component interfaces it provides.
     /// </summary>
     public async Task AddComponentAsync<TComponent>(CancellationToken ct = default)
-        where TComponent : struct
+        where TComponent : struct, IComponent
     {
         var payload = $"{Id.Value}:{typeof(TComponent).Name}";
         var reply = await _nats.RequestAsync<string, string>(
@@ -49,7 +49,7 @@ public sealed class Entity
     /// Removes a component from this entity via the backend.
     /// </summary>
     public async Task RemoveComponentAsync<TComponent>(CancellationToken ct = default)
-        where TComponent : struct
+        where TComponent : struct, IComponent
     {
         var payload = $"{Id.Value}:{typeof(TComponent).Name}";
         var reply = await _nats.RequestAsync<string, string>(
@@ -68,7 +68,7 @@ public sealed class Entity
     /// Checks whether this entity has a given component via the backend.
     /// </summary>
     public async Task<bool> HasComponentAsync<TComponent>(CancellationToken ct = default)
-        where TComponent : struct
+        where TComponent : struct, IComponent
     {
         var payload = $"{Id.Value}:{typeof(TComponent).Name}";
         var reply = await _nats.RequestAsync<string, string>(
@@ -104,7 +104,7 @@ public sealed class Entity
     /// Searches all loaded assemblies because proxy types are generated in module projects.
     /// </summary>
     public TComponent GetComponent<TComponent>()
-        where TComponent : IComponent
+        where TComponent : IBehaviour
     {
         var interfaceType = typeof(TComponent);
         var interfaceName = interfaceType.Name;

@@ -2,14 +2,14 @@
 
 ## Overview
 
-Resolver Engine is an **Entity-Component** engine built with .NET 9 and C#. Entities are lightweight identifiers; components define data contracts as interfaces; module workers provide concrete storage and logic for those contracts. Communication between the backend and module runtimes uses **NATS** as the message transport with **MessagePack** serialization. A Roslyn-based source generator (**Engine.Generators**) eliminates boilerplate by generating client-side NATS proxies and worker-side dispatch code for component interfaces.
+Resolver Engine is an **Entity-Component-Behaviour** engine built with .NET 9 and C#. Entities are lightweight identifiers; behaviours define data contracts as interfaces; component structs declare which behaviours they provide via `[Has<T>]` attributes; module workers provide concrete storage and logic for those contracts. Communication between the backend and module runtimes uses **NATS** as the message transport with **MessagePack** serialization. A Roslyn-based source generator (**Engine.Generators**) eliminates boilerplate by generating client-side NATS proxies and worker-side dispatch code for behaviour interfaces.
 
 ## Solution Layout
 
 ```
 Engine.sln
 ├── src/                              # Core libraries and executables
-│   ├── Engine.Core                   # Shared contracts (interfaces, value types, HasAttribute)
+│   ├── Engine.Core                   # Shared contracts (IComponent, IBehaviour, value types, HasAttribute)
 │   ├── Engine.Client                 # Client-side proxies (Entity, World)
 │   ├── Engine.Generators             # Roslyn source generator (analyzer)
 │   ├── Engine.Module                 # Module-side abstractions (ComponentWorker, IDataDispatch)
@@ -71,38 +71,46 @@ All operations are thread-safe via `ConcurrentDictionary`.
 
 ### Component
 
-A **component** is a data contract defined as an interface in Engine.Core.
+A **component** is a concrete marker struct that implements `IComponent` and declares which behaviours it provides via `[Has<T>]` attributes.
 
-- `IComponent` — marker interface; all components implement this.
-- `IDataComponent<T> : IComponent` — a convenience base for components that hold typed data with async `GetDataAsync` and `SetDataAsync` methods.
-- `IPose : IDataComponent<Pose>` — position and rotation (`Vector3` + `Quaternion`).
-- `IParent : IDataComponent<EntityId>` — parent-child entity relationship.
+- `IComponent` — marker interface implemented by all component structs.
 
-Components are **interfaces only**; they carry no implementation. Any interface extending `IComponent` can define arbitrary async methods (returning `Task` or `Task<T>`, with zero or one value parameter plus an optional `CancellationToken`). The source generator produces client-side proxies and worker-side dispatch code for all methods declared on a component interface.
+Components are structs that represent a named, deployable unit of functionality. They carry no data or logic themselves — they serve as type-level identifiers for adding/removing functionality to entities.
+
+### Behaviour
+
+A **behaviour** is a data/logic contract defined as an interface in Engine.Core.
+
+- `IBehaviour` — marker interface; all behaviours implement this.
+- `IDataBehaviour<T> : IBehaviour` — a convenience base for behaviours that hold typed data with async `GetDataAsync` and `SetDataAsync` methods.
+- `IPose : IDataBehaviour<Pose>` — position and rotation (`Vector3` + `Quaternion`).
+- `IParent : IDataBehaviour<EntityId>` — parent-child entity relationship.
+
+Behaviours are **interfaces only**; they carry no implementation. Any interface extending `IBehaviour` can define arbitrary async methods (returning `Task` or `Task<T>`, with zero or one value parameter plus an optional `CancellationToken`). The source generator produces client-side proxies and worker-side dispatch code for all methods declared on a behaviour interface.
 
 ### Component Marker Structs and `Has<T>`
 
-Each module defines a **marker struct** in a `.Core` project that declares which component interfaces it provides via `[Has<T>]` attributes:
+Each module defines a **component struct** in a `.Core` project that implements `IComponent` and declares which behaviour interfaces it provides via `[Has<T>]` attributes:
 
 ```csharp
 [Has<IPose>]
-public struct InMemoryPose { }
+public struct InMemoryPose : IComponent { }
 ```
 
-A single struct can provide multiple component interfaces:
+A single struct can provide multiple behaviour interfaces:
 
 ```csharp
 [Has<IPose>]
 [Has<IParent>]
-public struct InMemoryPoseAndParent { }
+public struct InMemoryPoseAndParent : IComponent { }
 ```
 
-Marker structs serve three purposes:
+Component structs serve three purposes:
 1. **Client-side `AddComponentAsync<T>()`** — the client uses the struct type to add components: `entity.AddComponentAsync<InMemoryPose>()`.
-2. **Worker type argument** — workers are generic over the marker struct: `ComponentWorker<InMemoryPose>`.
-3. **Source generator input** — the generator reads `[Has<>]` attributes to determine which interfaces the worker must implement and generates dispatch code accordingly.
+2. **Worker type argument** — workers are generic over the component struct: `ComponentWorker<InMemoryPose>`.
+3. **Source generator input** — the generator reads `[Has<>]` attributes to determine which behaviour interfaces the worker must implement and generates dispatch code accordingly.
 
-Marker structs live in `Modules.<Name>.Core` projects so they can be shared between client code and module implementations without pulling in worker dependencies.
+Component structs live in `Modules.<Name>.Core` projects so they can be shared between client code and module implementations without pulling in worker dependencies.
 
 ### `HasAttribute<T>`
 
@@ -115,7 +123,7 @@ public abstract class HasAttribute : Attribute
     public abstract Type ComponentType { get; }
 }
 
-public sealed class HasAttribute<T> : HasAttribute where T : IComponent
+public sealed class HasAttribute<T> : HasAttribute where T : IBehaviour
 {
     public override Type ComponentType => typeof(T);
 }
@@ -123,13 +131,13 @@ public sealed class HasAttribute<T> : HasAttribute where T : IComponent
 
 ### ComponentWorker
 
-`ComponentWorker<T>` (Engine.Module) is the abstract base class for module workers. It is generic over a marker struct `T : struct` and provides:
+`ComponentWorker<T>` (Engine.Module) is the abstract base class for module workers. It is generic over a component struct `T : struct, IComponent` and provides:
 
 - `EntityId` property — set by the module runtime after construction to identify which entity this worker belongs to.
 - `OnAddedAsync(CancellationToken)` — called when the component is attached to an entity.
 - `OnRemovedAsync(CancellationToken)` — called when the component is removed.
 
-Concrete workers (e.g., `InMemoryPoseWorker`, `InMemoryParentWorker`) extend this base and implement the methods from their component interfaces (as determined by the `[Has<>]` attributes on the marker struct). One worker instance is created per `(EntityId, markerStruct)` pair. When a marker struct declares multiple `[Has<>]` interfaces, the worker must implement all of them.
+Concrete workers (e.g., `InMemoryPoseWorker`, `InMemoryParentWorker`) extend this base and implement the methods from their behaviour interfaces (as determined by the `[Has<>]` attributes on the component struct). One worker instance is created per `(EntityId, componentStruct)` pair. When a component struct declares multiple `[Has<>]` interfaces, the worker must implement all of them.
 
 ### IDataDispatch
 
@@ -142,16 +150,16 @@ public interface IDataDispatch
 }
 ```
 
-It provides a single entry point for the ModuleRuntime to invoke any component method on a worker without reflection. The `componentName` parameter disambiguates methods when a worker handles multiple component interfaces with overlapping method names. The source generator emits a nested `switch` over component name and method name, deserializes parameters with MessagePack, calls the worker's concrete method via an interface cast, and serializes the return value.
+It provides a single entry point for the ModuleRuntime to invoke any behaviour method on a worker without reflection. The `componentName` parameter disambiguates methods when a worker handles multiple behaviour interfaces with overlapping method names. The source generator emits a nested `switch` over component name and method name, deserializes parameters with MessagePack, calls the worker's concrete method via an interface cast, and serializes the return value.
 
 ### Source Generator (Engine.Generators)
 
 `ComponentProxyGenerator` is a Roslyn `IIncrementalGenerator` (`netstandard2.0`, referenced as an analyzer) that produces two kinds of generated code:
 
-- **Worker-side partial classes** — for each `partial` class inheriting `ComponentWorker<T>`, the generator reads `[Has<>]` attributes from the marker struct `T`, emits a partial that adds all component interfaces to the class declaration, and implements `IDataDispatch` with a nested component/method dispatch switch. Interface casts are used in the dispatch to correctly route method calls when multiple interfaces share method names.
-- **Client-side proxy classes** — for each interface extending `IComponent`, the generator emits a proxy class (e.g., `PoseProxy` for `IPose`) that implements the component interface and forwards each method call over NATS request-reply to the ModuleRuntime.
+- **Worker-side partial classes** — for each `partial` class inheriting `ComponentWorker<T>`, the generator reads `[Has<>]` attributes from the component struct `T`, emits a partial that adds all behaviour interfaces to the class declaration, and implements `IDataDispatch` with a nested component/method dispatch switch. Interface casts are used in the dispatch to correctly route method calls when multiple interfaces share method names.
+- **Client-side proxy classes** — for each interface extending `IBehaviour`, the generator emits a proxy class (e.g., `PoseProxy` for `IPose`) that implements the behaviour interface and forwards each method call over NATS request-reply to the ModuleRuntime.
 
-Proxy classes accept an `EntityId` and `INatsConnection` and can be obtained via `Entity.GetComponent<T>()`.
+Proxy classes accept an `EntityId` and `INatsConnection` and can be obtained via `Entity.GetComponent<T>()` where `T` is a behaviour interface.
 
 ### World
 
@@ -205,14 +213,14 @@ Modules.InMemoryParent ──references──▶ Engine.Core, Engine.Module, Mod
 Two executable projects exist:
 
 1. **Engine.Backend** — the central server process. Hosts the `EntityService` (entity lifecycles and component tracking) over NATS. Acts as a two-phase orchestrator: when a component is added or removed, the backend first sends a NATS request to the module runtime and only commits the change to the entity registry if the runtime responds successfully.
-2. **Engine.ModuleRuntime** — the module host process. Connects to NATS, discovers module DLLs, builds a type registry of `ComponentWorker<T>` types, reads `[Has<>]` attributes from their marker structs, and subscribes to `worker.create.<structName>` and `worker.remove.<structName>` subjects to create/destroy worker instances on demand. Additionally subscribes to `component.<interfaceName>.*` subjects to dispatch component method calls to live workers via their `IDataDispatch` implementation.
+2. **Engine.ModuleRuntime** — the module host process. Connects to NATS, discovers module DLLs, builds a type registry of `ComponentWorker<T>` types, reads `[Has<>]` attributes from their component structs, and subscribes to `worker.create.<structName>` and `worker.remove.<structName>` subjects to create/destroy worker instances on demand. Additionally subscribes to `component.<interfaceName>.*` subjects to dispatch behaviour method calls to live workers via their `IDataDispatch` implementation.
 
 ### Component Add Flow
 
-1. A client calls `Entity.AddComponentAsync<T>()`, which sends a request to `entity.add-component` with the marker struct name.
+1. A client calls `Entity.AddComponentAsync<T>()`, which sends a request to `entity.add-component` with the component struct name.
 2. The backend validates the request (entity exists, component not already added).
 3. The backend sends a NATS request to `worker.create.<structName>` with the `EntityId` as payload.
-4. The module runtime creates a new `ComponentWorker<T>` instance, sets its `EntityId` property, calls `OnAddedAsync`, registers the worker for all component interfaces declared by the struct's `[Has<>]` attributes, and replies `"ok"`.
+4. The module runtime creates a new `ComponentWorker<T>` instance, sets its `EntityId` property, calls `OnAddedAsync`, registers the worker for all behaviour interfaces declared by the struct's `[Has<>]` attributes, and replies `"ok"`.
 5. On success, the backend registers the component in the `EntityRepository` and replies `"ok"` to the caller.
 6. On failure (no responders, timeout, or error), the backend replies with an error and does **not** register the component.
 
@@ -229,13 +237,13 @@ Same two-phase pattern: `entity.remove-component` → `worker.remove.<structName
 
 ### Module Loading
 
-At startup the ModuleRuntime scans `{AppContext.BaseDirectory}/modules/` for `.dll` files. For each assembly it finds, it reflects over exported types and builds a **type registry** (`Dictionary<string, Type>`) mapping each marker struct name (e.g. `"InMemoryPose"`) to the concrete `ComponentWorker<T>` type that handles it. It also builds a **component mapping** (`Dictionary<string, string>`) from component interface name (e.g. `"IPose"`) to marker struct name, by reading `[Has<>]` attributes from each marker struct. No worker instances are created eagerly — they are instantiated on demand when `worker.create.<structName>` requests arrive.
+At startup the ModuleRuntime scans `{AppContext.BaseDirectory}/modules/` for `.dll` files. For each assembly it finds, it reflects over exported types and builds a **type registry** (`Dictionary<string, Type>`) mapping each component struct name (e.g. `"InMemoryPose"`) to the concrete `ComponentWorker<T>` type that handles it. It also builds a **component mapping** (`Dictionary<string, string>`) from behaviour interface name (e.g. `"IPose"`) to component struct name, by reading `[Has<>]` attributes from each component struct. No worker instances are created eagerly — they are instantiated on demand when `worker.create.<structName>` requests arrive.
 
 Workers are created via parameterless constructors (`Activator.CreateInstance`). Live instances are tracked in two dictionaries:
 - `(EntityId, structName) → worker` for lifecycle management (create/remove).
-- `(EntityId, componentInterfaceName) → worker` for method dispatch routing.
+- `(EntityId, behaviourInterfaceName) → worker` for method dispatch routing.
 
-When a worker handles multiple component interfaces, the same instance appears in the dispatch dictionary under each interface name.
+When a worker handles multiple behaviour interfaces, the same instance appears in the dispatch dictionary under each interface name.
 
 To deploy a module, copy its build output (DLL + dependencies, including the `.Core` project) into the `modules/` sub-directory of the ModuleRuntime publish output.
 
@@ -279,12 +287,12 @@ Errors are returned via NATS service error replies with a numeric code and descr
 
 ## Conventions
 
-- All component interfaces live in **Engine.Core** so they can be shared between backend and module code without circular dependencies.
-- Each module has a **`.Core` project** (e.g. `Modules.InMemoryPose.Core`) containing the marker struct with `[Has<>]` attributes. This project is shared between client and worker code.
+- All behaviour interfaces live in **Engine.Core** so they can be shared between backend and module code without circular dependencies.
+- Each module has a **`.Core` project** (e.g. `Modules.InMemoryPose.Core`) containing the component struct with `[Has<>]` attributes and `IComponent` implementation. This project is shared between client and worker code.
 - Module worker projects live under the `modules/` folder and reference Engine.Core, Engine.Module, and their `.Core` project.
 - Module worker classes are `partial` to support source generation.
 - Async-first API: all component and entity operations return `Task` and accept `CancellationToken`.
 - Component method constraints: must return `Task` or `Task<T>`, accept 0 or 1 value parameter plus optional `CancellationToken`.
 - Generated proxy naming convention: interface name with leading `I` stripped plus `Proxy` suffix (e.g., `IPose` → `PoseProxy`).
-- `Entity.GetComponent<T>()` resolves proxy types by naming convention at runtime.
-- `Entity.AddComponentAsync<T>()` takes a marker struct type; the system maps it to the correct worker via the struct name.
+- `Entity.GetComponent<T>()` resolves proxy types by naming convention at runtime, where `T` is a behaviour interface (constrained to `IBehaviour`).
+- `Entity.AddComponentAsync<T>()` takes a component struct type (constrained to `struct, IComponent`); the system maps it to the correct worker via the struct name.

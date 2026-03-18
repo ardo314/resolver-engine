@@ -3,7 +3,7 @@ using Engine.Core;
 namespace Engine.Module;
 
 public abstract class ComponentWorker<T>
-    where T : struct
+    where T : struct, IComponent
 {
     public EntityId EntityId { get; private set; }
 
