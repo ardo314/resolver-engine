@@ -11,9 +11,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Engine.ModuleRuntime", "src
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "modules", "modules", "{CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules.InMemoryPose", "modules\Modules.InMemoryPose\Modules.InMemoryPose.csproj", "{3F970B3E-5ECF-4A7C-9D76-D9AE6610FC25}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InMemoryPose.Worker", "modules\InMemoryPose.Worker\InMemoryPose.Worker.csproj", "{3F970B3E-5ECF-4A7C-9D76-D9AE6610FC25}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules.InMemoryParent", "modules\Modules.InMemoryParent\Modules.InMemoryParent.csproj", "{C0189647-9B98-4A82-8AF0-CE83608751CF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InMemoryParent.Worker", "modules\InMemoryParent.Worker\InMemoryParent.Worker.csproj", "{C0189647-9B98-4A82-8AF0-CE83608751CF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Engine.Backend", "src\Engine.Backend\Engine.Backend.csproj", "{12C7C70B-1614-4AA9-96F6-B484C43D4E2B}"
 EndProject
@@ -25,9 +25,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Engine.Client", "src\Engine
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Engine.Sandbox", "src\Engine.Sandbox\Engine.Sandbox.csproj", "{E20BA19C-CC3A-4603-8E4E-9A36F1C83829}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules.InMemoryPose.Core", "modules\Modules.InMemoryPose.Core\Modules.InMemoryPose.Core.csproj", "{4EA47AE4-5B51-4A24-AA1B-003144099C68}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InMemoryPose", "modules\InMemoryPose\InMemoryPose.csproj", "{4EA47AE4-5B51-4A24-AA1B-003144099C68}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modules.InMemoryParent.Core", "modules\Modules.InMemoryParent.Core\Modules.InMemoryParent.Core.csproj", "{0F0CC5CC-D442-4ECC-BF57-E58205F3FE17}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InMemoryParent", "modules\InMemoryParent\InMemoryParent.csproj", "{0F0CC5CC-D442-4ECC-BF57-E58205F3FE17}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

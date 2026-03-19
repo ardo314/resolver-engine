@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\Engine.Module\Engine.Module.csproj" />
-    <ProjectReference Include="..\Modules.InMemoryParent.Core\Modules.InMemoryParent.Core.csproj" />
+    <ProjectReference Include="..\InMemoryPose\InMemoryPose.csproj" />
     <ProjectReference
       Include="..\..\src\Engine.Generators\Engine.Generators.csproj"
       OutputItemType="Analyzer"

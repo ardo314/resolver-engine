@@ -1,6 +1,6 @@
 using Engine.Client;
 
-namespace Modules.InMemoryParent.Core;
+namespace InMemoryParent;
 
 [Has<IParent>]
 public struct InMemoryParent : IComponent { }

@@ -17,16 +17,16 @@ Engine.sln
 │   ├── Engine.Sandbox                # Console app for experimentation
 │   └── Engine.Backend                # Central backend process
 └── modules/                          # Pluggable module implementations
-    ├── Modules.InMemoryPose.Core     # Marker struct for InMemoryPose component
-    ├── Modules.InMemoryPose          # In-memory IPose component worker
-    ├── Modules.InMemoryParent.Core   # Marker struct for InMemoryParent component
-    └── Modules.InMemoryParent        # In-memory IParent component worker
+    ├── InMemoryPose                  # Marker struct for InMemoryPose component
+    ├── InMemoryPose.Worker           # In-memory IPose component worker
+    ├── InMemoryParent                # Marker struct for InMemoryParent component
+    └── InMemoryParent.Worker         # In-memory IParent component worker
 ```
 
 ### Planned / Referenced (not yet implemented)
 
-- **Engine.Math** — Math utilities, referenced by Modules.InMemoryPose.
-- **Engine.Hierarchy** — Hierarchy utilities, referenced by Modules.InMemoryParent.
+- **Engine.Math** — Math utilities, referenced by InMemoryPose.
+- **Engine.Hierarchy** — Hierarchy utilities, referenced by InMemoryParent.
 
 ## Build & Tooling
 
@@ -93,7 +93,7 @@ Behaviours are **interfaces only**; they carry no implementation. Any interface 
 
 ### Component Marker Structs and `Has<T>`
 
-Each module defines a **component struct** in a `.Core` project that implements `IComponent` and declares which behaviour interfaces it provides via `[Has<T>]` attributes:
+Each module defines a **component struct** in a core project (e.g. `InMemoryPose`) that implements `IComponent` and declares which behaviour interfaces it provides via `[Has<T>]` attributes:
 
 ```csharp
 [Has<IPose>]
@@ -113,7 +113,7 @@ Component structs serve three purposes:
 2. **Worker type argument** — workers are generic over the component struct: `ComponentWorker<InMemoryPose>`.
 3. **Source generator input** — the generator reads `[Has<>]` attributes to determine which behaviour interfaces the worker must implement and generates dispatch code accordingly.
 
-Component structs live in `Modules.<Name>.Core` projects so they can be shared between client code and module implementations without pulling in worker dependencies.
+Component structs live in `<Name>` projects (e.g. `InMemoryPose`) so they can be shared between client code and module implementations without pulling in worker dependencies.
 
 ### `HasAttribute<T>`
 
@@ -191,21 +191,21 @@ Engine.Module  ──references──▶ Engine.Core, Engine.Client
 Engine.ModuleRuntime  ──references──▶ Engine.Core, Engine.Module
                       ──packages────▶ NATS.Net, MessagePack
 
-Engine.Sandbox  ──references──▶ Engine.Core, Engine.Client, Modules.InMemoryParent.Core, Modules.InMemoryPose.Core, Modules.InMemoryParent, Modules.InMemoryPose
+Engine.Sandbox  ──references──▶ Engine.Core, Engine.Client, InMemoryParent, InMemoryPose, InMemoryParent.Worker, InMemoryPose.Worker
                 ──packages────▶ NATS.Net
 
 Engine.Backend  ──references──▶ Engine.Core
                 ──packages────▶ NATS.Net, MessagePack
 
-Modules.InMemoryPose.Core   ──references──▶ Engine.Client
-Modules.InMemoryParent.Core ──references──▶ Engine.Client
+InMemoryPose   ──references──▶ Engine.Client
+InMemoryParent ──references──▶ Engine.Client
 
-Modules.InMemoryPose   ──references──▶ Engine.Core, Engine.Module, Modules.InMemoryPose.Core
-                       ──analyzer────▶ Engine.Generators
-                       ──packages────▶ MessagePack
-Modules.InMemoryParent ──references──▶ Engine.Core, Engine.Module, Modules.InMemoryParent.Core
-                       ──analyzer────▶ Engine.Generators
-                       ──packages────▶ MessagePack
+InMemoryPose.Worker   ──references──▶ Engine.Core, Engine.Module, InMemoryPose
+                      ──analyzer────▶ Engine.Generators
+                      ──packages────▶ MessagePack
+InMemoryParent.Worker ──references──▶ Engine.Core, Engine.Module, InMemoryParent
+                      ──analyzer────▶ Engine.Generators
+                      ──packages────▶ MessagePack
 ```
 
 ## Transport & Serialization
@@ -251,7 +251,7 @@ Workers are created via parameterless constructors (`Activator.CreateInstance`).
 
 When a worker handles multiple behaviour interfaces, the same instance appears in the dispatch dictionary under each interface name.
 
-To deploy a module, copy its build output (DLL + dependencies, including the `.Core` project) into the `modules/` sub-directory of the ModuleRuntime publish output.
+To deploy a module, copy its build output (DLL + dependencies, including the core project) into the `modules/` sub-directory of the ModuleRuntime publish output.
 
 Modules run inside the ModuleRuntime process, not as separate executables.
 
@@ -294,8 +294,8 @@ Errors are returned via NATS service error replies with a numeric code and descr
 ## Conventions
 
 - All behaviour interfaces and component contracts (`IComponent`, `IBehaviour`, `HasAttribute<T>`, `IProxy`, `IDataBehaviour<T>`) live in **Engine.Client** so they can be shared between client, module, and module-core code without depending on the backend. **Engine.Core** contains only `EntityId`, the minimal shared identity type needed by the backend.
-- Each module has a **`.Core` project** (e.g. `Modules.InMemoryPose.Core`) containing the component struct with `[Has<>]` attributes and `IComponent` implementation. This project is shared between client and worker code.
-- Module worker projects live under the `modules/` folder and reference Engine.Core, Engine.Module, and their `.Core` project.
+- Each module has a **core project** (e.g. `InMemoryPose`) containing the component struct with `[Has<>]` attributes and `IComponent` implementation. This project is shared between client and worker code.
+- Module worker projects (e.g. `InMemoryPose.Worker`) live under the `modules/` folder and reference Engine.Core, Engine.Module, and their core project.
 - Module worker classes are `partial` to support source generation.
 - Async-first API: all component and entity operations return `Task` and accept `CancellationToken`.
 - Component method constraints: must return `Task` or `Task<T>`, accept 0 or 1 value parameter plus optional `CancellationToken`.

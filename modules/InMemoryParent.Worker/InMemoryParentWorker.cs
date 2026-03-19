@@ -1,10 +1,9 @@
 using Engine.Core;
 using Engine.Module;
-using Modules.InMemoryParent.Core;
 
-namespace Modules.InMemoryParent;
+namespace InMemoryParent.Worker;
 
-public partial class InMemoryParentWorker : ComponentWorker<Core.InMemoryParent>
+public partial class InMemoryParentWorker : ComponentWorker<global::InMemoryParent.InMemoryParent>
 {
     private EntityId? _parentId;
 

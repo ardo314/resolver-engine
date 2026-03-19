@@ -4,10 +4,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\modules\Modules.InMemoryParent.Core\Modules.InMemoryParent.Core.csproj" />
-    <ProjectReference Include="..\..\modules\Modules.InMemoryPose.Core\Modules.InMemoryPose.Core.csproj" />
-    <ProjectReference Include="..\..\modules\Modules.InMemoryParent\Modules.InMemoryParent.csproj" />
-    <ProjectReference Include="..\..\modules\Modules.InMemoryPose\Modules.InMemoryPose.csproj" />
+    <ProjectReference Include="..\..\modules\InMemoryParent\InMemoryParent.csproj" />
+    <ProjectReference Include="..\..\modules\InMemoryPose\InMemoryPose.csproj" />
+    <ProjectReference Include="..\..\modules\InMemoryParent.Worker\InMemoryParent.Worker.csproj" />
+    <ProjectReference Include="..\..\modules\InMemoryPose.Worker\InMemoryPose.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>
