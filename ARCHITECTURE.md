@@ -153,15 +153,22 @@ public interface IDataDispatch
 
 It provides a single entry point for the WorkerRuntime to invoke any behaviour method on a worker without reflection. The `componentName` parameter disambiguates methods when a worker handles multiple behaviour interfaces with overlapping method names. The source generator emits a nested `switch` over component name and method name, deserializes parameters with MessagePack, calls the worker's concrete method via an interface cast, and serializes the return value.
 
-### Source Generator (Engine.Generators)
+### Source Generators (Engine.Generators)
 
-`ComponentProxyGenerator` is a Roslyn `IIncrementalGenerator` (`netstandard2.0`, referenced as an analyzer) that produces three kinds of generated code, all derived from `ComponentWorker<T>` declarations found in the current compilation:
+Engine.Generators contains two Roslyn `IIncrementalGenerator` implementations (`netstandard2.0`, referenced as an analyzer). Both discover `ComponentWorker<T>` declarations in the current compilation and read `[Has<>]` attributes from the component struct `T` to determine which behaviour interfaces a worker provides.
 
-- **Worker-side partial classes** — for each `partial` class inheriting `ComponentWorker<T>`, the generator reads `[Has<>]` attributes from the component struct `T`, emits a partial that adds all behaviour interfaces to the class declaration, and implements `IDataDispatch` with a nested component/method dispatch switch. Interface casts are used in the dispatch to correctly route method calls when multiple interfaces share method names.
+#### WorkerGenerator
+
+Generates **worker-side partial classes** — for each `partial` class inheriting `ComponentWorker<T>`, the generator emits a partial that adds all behaviour interfaces to the class declaration and implements `IDataDispatch` with a nested component/method dispatch switch. Interface casts are used in the dispatch to correctly route method calls when multiple interfaces share method names.
+
+#### ComponentProxyGenerator
+
+Generates two kinds of client-side proxy code:
+
 - **Behaviour proxy classes** — for each behaviour interface referenced by `[Has<>]` on a worker's component struct, the generator emits a proxy class (e.g., `PoseProxy` for `IPose`) that implements the behaviour interface and `IProxy`, and forwards each method call over NATS request-reply to the WorkerRuntime.
 - **Component proxy classes** — for each component struct that a worker handles, the generator emits a proxy class named `{StructName}Proxy` (e.g., `InMemoryPoseProxy` for `InMemoryPose`) that implements **all** behaviour interfaces declared via `[Has<>]` plus `IProxy`. Methods use explicit interface implementations to handle name collisions when multiple behaviours share method signatures (e.g., `GetDataAsync` on both `IPose` and `IParent`). Each method forwards to the same `component.<interfaceName>.<methodName>` NATS subjects used by behaviour proxies.
 
-Because all three outputs are derived from worker declarations, proxies are only generated in module projects that contain `ComponentWorker<T>` subclasses — not in consumer projects like the Sandbox. Consumer projects access the proxy types by referencing the module project.
+Because all outputs are derived from worker declarations, generated code is only emitted in module projects that contain `ComponentWorker<T>` subclasses — not in consumer projects like the Sandbox. Consumer projects access the proxy types by referencing the module project.
 
 All proxy classes accept an `EntityId` and `INatsConnection` in their constructor and can be obtained via `Entity.GetComponentProxy<T>()` where `T` is any generated proxy type (constrained to `class, IProxy`).
 
