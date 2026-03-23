@@ -1,7 +1,7 @@
 using System.Reflection;
 using Engine.Client;
 using Engine.Core;
-using Engine.Module;
+using Engine.Worker;
 using MessagePack;
 using NATS.Client.Core;
 
@@ -56,18 +56,18 @@ foreach (var dllPath in Directory.EnumerateFiles(modulesDir, "*.dll"))
         var structName = markerStruct.Name;
         workerTypes[structName] = type;
 
-        // Read [Has<>] attributes from the marker struct to discover component interfaces
+        // Read [HasBehaviour<>] attributes from the marker struct to discover component interfaces
         var hasAttributes = markerStruct
             .GetCustomAttributes(inherit: false)
             .Where(a =>
                 a.GetType().IsGenericType
-                && a.GetType().GetGenericTypeDefinition() == typeof(HasAttribute<>)
+                && a.GetType().GetGenericTypeDefinition() == typeof(HasBehaviourAttribute<>)
             )
             .ToList();
 
         foreach (var attr in hasAttributes)
         {
-            var componentType = ((HasAttribute)attr).ComponentType;
+            var componentType = ((HasBehaviourAttribute)attr).ComponentType;
             componentToStructName[componentType.Name] = structName;
             Console.WriteLine($"  Component interface: {componentType.Name} → {structName}");
         }
@@ -99,9 +99,9 @@ foreach (var (structName, workerType) in workerTypes)
         .GetCustomAttributes(inherit: false)
         .Where(a =>
             a.GetType().IsGenericType
-            && a.GetType().GetGenericTypeDefinition() == typeof(HasAttribute<>)
+            && a.GetType().GetGenericTypeDefinition() == typeof(HasBehaviourAttribute<>)
         )
-        .Select(a => ((HasAttribute)a).ComponentType.Name)
+        .Select(a => ((HasBehaviourAttribute)a).ComponentType.Name)
         .ToList();
 
     // Subscribe to worker.create.<structName>
@@ -338,7 +338,7 @@ foreach (var componentName in allComponentNames)
     );
 }
 
-Console.WriteLine("Engine.ModuleRuntime running – press Ctrl+C to stop.");
+Console.WriteLine("Engine.WorkerRuntime running – press Ctrl+C to stop.");
 
 try
 {

@@ -1,4 +1,4 @@
-namespace Engine.Module;
+namespace Engine.Worker;
 
 /// <summary>
 /// Implemented by generated partial classes to dispatch component method calls

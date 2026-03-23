@@ -1,0 +1,10 @@
+**/.git
+**/.devcontainer
+**/.vscode
+**/bin
+**/obj
+**/node_modules
+**/.DS_Store
+**/Thumbs.db
+*.md
+LICENSE

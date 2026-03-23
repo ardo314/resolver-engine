@@ -1,5 +1,5 @@
 using Engine.Core;
-using Engine.Module;
+using Engine.Worker;
 using InMemory;
 
 namespace InMemory.Workers;

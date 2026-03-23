@@ -1,6 +1,6 @@
 using System.Numerics;
 using Engine.Client;
-using Engine.Module;
+using Engine.Worker;
 using InMemory;
 
 namespace InMemory.Workers;

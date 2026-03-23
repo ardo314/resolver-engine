@@ -3,15 +3,19 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
   "postCreateCommand": "dotnet restore",
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-dotnettools.csharp",
         "ms-dotnettools.vscode-dotnet-runtime",
+        "ms-dotnettools.csdevkit",
+        "ms-azuretools.vscode-containers",
         "github.copilot-chat",
-        "csharpier.csharpier-vscode",
-        "jakubkozera.csharp-dev-tools"
+        "csharpier.csharpier-vscode"
       ],
       "settings": {
         "dotnet.defaultSolution": "Engine.sln",

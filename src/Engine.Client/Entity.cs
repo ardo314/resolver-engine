@@ -26,7 +26,7 @@ public sealed class Entity
 
     /// <summary>
     /// Registers a component on this entity via the backend.
-    /// The marker struct <typeparamref name="TComponent"/> must carry <c>[Has&lt;...&gt;]</c>
+    /// The marker struct <typeparamref name="TComponent"/> must carry <c>[HasBehaviour&lt;...&gt;]</c>
     /// attributes indicating which component interfaces it provides.
     /// </summary>
     public async Task AddComponentAsync<TComponent>(CancellationToken ct = default)

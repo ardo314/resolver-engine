@@ -4,7 +4,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Engine.Module\Engine.Module.csproj" />
+    <ProjectReference Include="..\Engine.Worker\Engine.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>

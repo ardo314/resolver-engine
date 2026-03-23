@@ -1,11 +1,11 @@
 namespace Engine.Client;
 
 /// <summary>
-/// Base class for the generic <see cref="HasAttribute{T}"/> attribute.
+/// Base class for the generic <see cref="HasBehaviourAttribute{T}"/> attribute.
 /// Allows runtime reflection without knowing the type argument.
 /// </summary>
 [AttributeUsage(AttributeTargets.Struct, AllowMultiple = true, Inherited = false)]
-public abstract class HasAttribute : Attribute
+public abstract class HasBehaviourAttribute : Attribute
 {
     /// <summary>
     /// The behaviour interface type this struct provides.
@@ -19,7 +19,7 @@ public abstract class HasAttribute : Attribute
 /// and by the client-side <c>AddComponentAsync</c> to discover component names at runtime.
 /// </summary>
 [AttributeUsage(AttributeTargets.Struct, AllowMultiple = true, Inherited = false)]
-public sealed class HasAttribute<T> : HasAttribute
+public sealed class HasBehaviourAttribute<T> : HasBehaviourAttribute
     where T : IBehaviour
 {
     public override Type ComponentType => typeof(T);

@@ -1,7 +1,7 @@
 using Engine.Client;
 using Engine.Core;
 
-namespace Engine.Module;
+namespace Engine.Worker;
 
 public abstract class ComponentWorker<T>
     where T : struct, IComponent

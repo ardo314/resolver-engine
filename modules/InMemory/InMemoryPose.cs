@@ -2,5 +2,5 @@ using Engine.Client;
 
 namespace InMemory;
 
-[Has<IPose>]
+[HasBehaviour<IPose>]
 public struct InMemoryPose : IComponent { }

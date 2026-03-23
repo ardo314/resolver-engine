@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Engine.Module\Engine.Module.csproj" />
+    <ProjectReference Include="..\..\src\Engine.Worker\Engine.Worker.csproj" />
     <ProjectReference Include="..\InMemory\InMemory.csproj" />
     <ProjectReference
       Include="..\..\src\Engine.Generators\Engine.Generators.csproj"
