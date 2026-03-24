@@ -13,13 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          dotnet-version: '9.0.x'
+          node-version: "22"
+          cache: "npm"
 
-      - name: Restore
-        run: dotnet restore Engine.sln
+      - name: Install
+        run: npm ci
 
       - name: Build
-        run: dotnet build Engine.sln --no-restore --configuration Release
+        run: npm run build
