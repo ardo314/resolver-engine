@@ -6,22 +6,19 @@
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
-  "postCreateCommand": "dotnet restore",
+  "postCreateCommand": "npm install",
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-dotnettools.csharp",
-        "ms-dotnettools.vscode-dotnet-runtime",
-        "ms-dotnettools.csdevkit",
         "ms-azuretools.vscode-containers",
         "github.copilot-chat",
-        "csharpier.csharpier-vscode"
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
       ],
       "settings": {
-        "dotnet.defaultSolution": "Engine.sln",
         "editor.formatOnSave": true,
-        "[csharp]": {
-          "editor.defaultFormatter": "csharpier.csharpier-vscode"
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
         }
       }
     }

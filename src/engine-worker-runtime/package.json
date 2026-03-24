@@ -1,0 +1,17 @@
+{
+  "name": "engine-worker-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/program.js",
+  "types": "./dist/program.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "start": "node dist/program.js"
+  },
+  "dependencies": {
+    "engine-core": "1.0.0",
+    "engine-worker": "1.0.0",
+    "nats": "^2.28.0",
+    "@msgpack/msgpack": "^3.0.0"
+  }
+}

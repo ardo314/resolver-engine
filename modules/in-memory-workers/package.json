@@ -1,0 +1,19 @@
+{
+  "name": "in-memory-workers",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/program.js",
+  "types": "./dist/program.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "start": "node dist/program.js"
+  },
+  "dependencies": {
+    "engine-core": "1.0.0",
+    "engine-client": "1.0.0",
+    "engine-worker": "1.0.0",
+    "engine-worker-runtime": "1.0.0",
+    "in-memory": "1.0.0",
+    "@msgpack/msgpack": "^3.0.0"
+  }
+}

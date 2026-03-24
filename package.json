@@ -1,0 +1,22 @@
+{
+  "name": "component-engine",
+  "private": true,
+  "workspaces": [
+    "src/engine-core",
+    "src/engine-client",
+    "src/engine-worker",
+    "src/engine-backend",
+    "src/engine-worker-runtime",
+    "modules/in-memory",
+    "modules/in-memory-workers"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "watch": "tsc --build --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

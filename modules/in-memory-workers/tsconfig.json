@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../src/engine-core" },
+    { "path": "../../src/engine-client" },
+    { "path": "../../src/engine-worker" },
+    { "path": "../../src/engine-worker-runtime" },
+    { "path": "../in-memory" }
+  ]
+}

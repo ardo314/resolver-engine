@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../src/engine-core" },
+    { "path": "../../src/engine-client" }
+  ]
+}
