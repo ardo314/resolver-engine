@@ -1,4 +1,2 @@
-/**
- * A serializable unique identifier for an entity.
- */
-export type EntityId = string & { readonly __brand: unique symbol };
+export { EntityId } from "./entity-id.js";
+export { defineComponent } from "./component.js";
