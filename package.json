@@ -2,13 +2,7 @@
   "name": "component-engine",
   "private": true,
   "workspaces": [
-    "src/engine-core",
-    "src/engine-client",
-    "src/engine-worker",
-    "src/engine-backend",
-    "src/engine-worker-runtime",
-    "modules/in-memory",
-    "modules/in-memory-workers"
+    "engine/*"
   ],
   "scripts": {
     "build": "tsc --build",
