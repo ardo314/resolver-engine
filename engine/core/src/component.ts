@@ -1,15 +1,18 @@
 type Id = string & { readonly __brand: unique symbol };
 
-interface Contract {
+interface ComponentContract {
   properties: Record<string, any>;
 }
 
 interface Component {
   id: Id;
-  contract: Contract;
+  contract: ComponentContract;
 }
 
-export function defineComponent(id: Id, contract: Contract): Component {
+export function defineComponent(
+  id: Id,
+  contract: ComponentContract,
+): Component {
   return {
     id: id,
     contract: contract,
