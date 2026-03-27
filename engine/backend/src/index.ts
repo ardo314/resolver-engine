@@ -1,2 +1,2 @@
 export { EntityRepository } from "./entity-repository.js";
-export { WorldHandler } from "./world-handler.js";
+export { EntityHandler } from "./entity-handler.js";

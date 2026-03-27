@@ -6,7 +6,7 @@ import { EntityRepository } from "./entity-repository.js";
 
 const sc = StringCodec();
 
-export class WorldHandler {
+export class EntityHandler {
   private readonly repo = new EntityRepository();
 
   constructor(private readonly nc: NatsConnection) {}

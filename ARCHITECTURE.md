@@ -43,7 +43,7 @@ Client ↔ Backend communication uses [NATS](https://nats.io/) request/reply.
 
 - **Subject conventions** are defined in `@engine/core` (`Subjects`).
 - **Client** (`World`, `Entity`) sends NATS requests via `NatsConnection.request()`.
-- **Backend** (`WorldHandler`) subscribes to subjects and delegates to `EntityRepository`.
+- **Backend** (`EntityHandler`) subscribes to subjects and delegates to `EntityRepository`.
 
 ### NATS Subjects
 
