@@ -10,6 +10,7 @@ Monorepo with three packages under `engine/`:
 | `@engine/backend` | `engine/backend` | Server-side entity management               |
 | `@engine/client`  | `engine/client`  | Client-side API                             |
 | `@engine/module`  | `engine/module`  | Module system (depends on client)           |
+| `@engine/editor`  | `engine/editor`  | Vite + React frontend                       |
 
 All packages use TypeScript project references and build via `tsc --build`.
 

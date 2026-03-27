@@ -4,6 +4,7 @@
     { "path": "engine/core" },
     { "path": "engine/backend" },
     { "path": "engine/client" },
-    { "path": "engine/module" }
+    { "path": "engine/module" },
+    { "path": "engine/editor" }
   ]
 }
