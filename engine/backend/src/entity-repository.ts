@@ -10,7 +10,7 @@ export class EntityRepository {
     return id;
   }
 
-  destroy(id: EntityId): boolean {
+  delete(id: EntityId): boolean {
     return this.entities.delete(id);
   }
 
