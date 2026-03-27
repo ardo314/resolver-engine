@@ -37,6 +37,25 @@ A `ComponentContract` declares a component's shape using [zod](https://zod.dev/)
 
 Zod schemas serve as the single source of truth for both TypeScript types (via `z.infer`) and runtime validation.
 
+## Transport
+
+Client ↔ Backend communication uses [NATS](https://nats.io/) request/reply.
+
+- **Subject conventions** are defined in `@engine/core` (`Subjects`).
+- **Client** (`World`, `Entity`) sends NATS requests via `NatsConnection.request()`.
+- **Backend** (`WorldHandler`) subscribes to subjects and delegates to `EntityRepository`.
+
+### NATS Subjects
+
+| Subject                         | Payload (request)                  | Payload (reply)  |
+| ------------------------------- | ---------------------------------- | ---------------- |
+| `engine.world.createEntity`     | _(empty)_                          | `EntityId`       |
+| `engine.world.deleteEntity`     | `EntityId`                         | `"true"/"false"` |
+| `engine.world.hasEntity`        | `EntityId`                         | `"true"/"false"` |
+| `engine.entity.addComponent`    | `{ entityId, componentId }` (JSON) | _(empty)_        |
+| `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON) | _(empty)_        |
+| `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON) | `"true"/"false"` |
+
 ## Build
 
 - **Target:** ES2022
