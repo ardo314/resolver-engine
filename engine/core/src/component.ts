@@ -1,55 +1,62 @@
 import { z } from "zod";
 
-type ComponentId = string & { readonly __brand: unique symbol };
+export type ComponentId = string & { readonly __brand: unique symbol };
 
-type MethodSchema = {
+export type ComponentPropertySchema = z.ZodType;
+
+export type ComponentMethodSchema = {
   readonly input?: z.ZodType;
   readonly output?: z.ZodType;
 };
 
 type ComponentSchema = {
-  readonly properties?: Record<string, z.ZodType>;
-  readonly methods?: Record<string, MethodSchema>;
+  readonly properties?: Record<string, ComponentPropertySchema>;
+  readonly methods?: Record<string, ComponentMethodSchema>;
 };
 
 export interface Component {
   readonly id: ComponentId;
-  readonly contract: ComponentSchema;
+  readonly schema: ComponentSchema;
 }
 
 export function defineComponent<const C extends ComponentSchema>(
   id: ComponentId,
-  contract: C,
-): { readonly id: ComponentId; readonly contract: C } {
+  schema: C,
+): { readonly id: ComponentId; readonly schema: C } {
   return {
     id: id,
-    contract: contract,
+    schema: schema,
   };
 }
 
-type InferProperties<P extends Record<string, z.ZodType>> = {
+export type InferComponentProperties<
+  P extends Record<string, ComponentPropertySchema>,
+> = {
   [K in keyof P]: {
     get(): Promise<z.infer<P[K]>>;
     set(value: z.infer<P[K]>): Promise<void>;
   };
 };
 
-type InferMethod<M extends MethodSchema> = M["input"] extends z.ZodType
-  ? M["output"] extends z.ZodType
-    ? (input: z.infer<M["input"]>) => Promise<z.infer<M["output"]>>
-    : (input: z.infer<M["input"]>) => Promise<void>
-  : M["output"] extends z.ZodType
-    ? () => Promise<z.infer<M["output"]>>
-    : () => Promise<void>;
+export type InferComponentMethod<M extends ComponentMethodSchema> =
+  M["input"] extends z.ZodType
+    ? M["output"] extends z.ZodType
+      ? (input: z.infer<M["input"]>) => Promise<z.infer<M["output"]>>
+      : (input: z.infer<M["input"]>) => Promise<void>
+    : M["output"] extends z.ZodType
+      ? () => Promise<z.infer<M["output"]>>
+      : () => Promise<void>;
 
-type InferMethods<M extends Record<string, MethodSchema>> = {
-  [K in keyof M]: InferMethod<M[K]>;
+export type InferComponentMethods<
+  M extends Record<string, ComponentMethodSchema>,
+> = {
+  [K in keyof M]: InferComponentMethod<M[K]>;
 };
 
 export type ComponentProxy<T extends Component> =
-  (T["contract"]["properties"] extends Record<string, z.ZodType>
-    ? InferProperties<T["contract"]["properties"]>
+  (T["schema"]["properties"] extends Record<string, ComponentPropertySchema>
+    ? InferComponentProperties<T["schema"]["properties"]>
     : unknown) &
-    (T["contract"]["methods"] extends Record<string, MethodSchema>
-      ? InferMethods<T["contract"]["methods"]>
+    (T["schema"]["methods"] extends Record<string, ComponentMethodSchema>
+      ? InferComponentMethods<T["schema"]["methods"]>
       : unknown);
