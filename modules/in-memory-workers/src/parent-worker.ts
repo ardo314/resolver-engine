@@ -5,7 +5,7 @@ import { defineComponentWorker } from "@engine/module";
 export const parentWorker = defineComponentWorker(parent, () => {
   let _value = entityIdSchema.parse("");
 
-  const valueProperty = {
+  const value = {
     async get() {
       return _value;
     },
@@ -15,6 +15,6 @@ export const parentWorker = defineComponentWorker(parent, () => {
   };
 
   return {
-    value: valueProperty,
+    value,
   };
 });
