@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-Monorepo with three packages under `engine/`:
+Monorepo with engine packages under `engine/` and user modules under `modules/`:
 
 | Package           | Path             | Description                                 |
 | ----------------- | ---------------- | ------------------------------------------- |
@@ -11,6 +11,7 @@ Monorepo with three packages under `engine/`:
 | `@engine/client`  | `engine/client`  | Client-side API                             |
 | `@engine/module`  | `engine/module`  | Module system (depends on client)           |
 | `@engine/editor`  | `engine/editor`  | Vite + React frontend                       |
+| `@ardo314/nova`   | `modules/nova`   | User module (depends on module)             |
 
 All packages use TypeScript project references and build via `tsc --build`.
 

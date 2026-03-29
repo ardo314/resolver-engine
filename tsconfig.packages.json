@@ -5,6 +5,7 @@
     { "path": "engine/backend" },
     { "path": "engine/client" },
     { "path": "engine/module" },
-    { "path": "engine/editor" }
+    { "path": "engine/editor" },
+    { "path": "modules/nova" }
   ]
 }

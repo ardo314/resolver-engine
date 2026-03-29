@@ -2,7 +2,8 @@
   "name": "component-engine",
   "private": true,
   "workspaces": [
-    "engine/*"
+    "engine/*",
+    "modules/*"
   ],
   "scripts": {
     "build": "tsc --build tsconfig.packages.json",
