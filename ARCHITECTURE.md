@@ -4,15 +4,15 @@
 
 Monorepo with engine packages under `engine/` and user modules under `modules/`:
 
-| Package                 | Path                   | Description                                 |
-| ----------------------- | ---------------------- | ------------------------------------------- |
-| `@engine/core`          | `engine/core`          | Core types: entities, components, contracts |
-| `@engine/backend`       | `engine/backend`       | Server-side entity management               |
-| `@engine/client`        | `engine/client`        | Client-side API                             |
-| `@engine/module`        | `engine/module`        | Module system (depends on client)           |
-| `@engine/editor`        | `engine/editor`        | Vite + React frontend                       |
-| `@ardo314/nova`         | `modules/nova`         | User module (depends on core)               |
-| `@ardo314/nova-workers` | `modules/nova-workers` | User module (depends on module, nova)       |
+| Package                      | Path                        | Description                                 |
+| ---------------------------- | --------------------------- | ------------------------------------------- |
+| `@engine/core`               | `engine/core`               | Core types: entities, components, contracts |
+| `@engine/backend`            | `engine/backend`            | Server-side entity management               |
+| `@engine/client`             | `engine/client`             | Client-side API                             |
+| `@engine/module`             | `engine/module`             | Module system (depends on client)           |
+| `@engine/editor`             | `engine/editor`             | Vite + React frontend                       |
+| `@ardo314/in-memory`         | `modules/in-memory`         | User module (depends on core)               |
+| `@ardo314/in-memory-workers` | `modules/in-memory-workers` | User module (depends on module, in-memory)  |
 
 All packages use TypeScript project references and build via `tsc --build`.
 

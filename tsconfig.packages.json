@@ -6,7 +6,7 @@
     { "path": "engine/client" },
     { "path": "engine/module" },
     { "path": "engine/editor" },
-    { "path": "modules/nova" },
-    { "path": "modules/nova-workers" }
+    { "path": "modules/in-memory" },
+    { "path": "modules/in-memory-workers" }
   ]
 }

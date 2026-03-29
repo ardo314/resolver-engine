@@ -1,5 +1,5 @@
 {
-  "name": "@ardo314/nova-workers",
+  "name": "@ardo314/in-memory",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,7 +11,6 @@
     "clean": "tsc --build --clean"
   },
   "dependencies": {
-    "@engine/module": "0.0.1",
-    "@ardo314/nova": "0.0.1"
+    "@engine/core": "0.0.1"
   }
 }
