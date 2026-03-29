@@ -35,3 +35,17 @@ export const poseSchema = z.tuple([
 ]);
 
 export type Pose = z.infer<typeof poseSchema>;
+
+export namespace Pose {
+  export function position(pose: Pose): Vector3 {
+    return [pose[0], pose[1], pose[2]];
+  }
+
+  export function rotation(pose: Pose): RotationVector {
+    return [pose[3], pose[4], pose[5]];
+  }
+
+  export function rotationVector(pose: Pose): RotationVector {
+    return [pose[3], pose[4], pose[5]];
+  }
+}
