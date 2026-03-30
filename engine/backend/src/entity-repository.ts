@@ -95,6 +95,24 @@ export class EntityRepository {
     return this.components.get(entityId)?.get(componentId);
   }
 
+  getComponentIds(entityId: EntityId): ComponentId[] {
+    const map = this.components.get(entityId);
+    return map ? [...map.keys()] : [];
+  }
+
+  getSchemaIdsForComponent(
+    entityId: EntityId,
+    componentId: ComponentId,
+  ): SchemaId[] {
+    const entitySchemas = this.schemaIndex.get(entityId);
+    if (!entitySchemas) return [];
+    const result: SchemaId[] = [];
+    for (const [schemaId, cId] of entitySchemas) {
+      if (cId === componentId) result.push(schemaId);
+    }
+    return result;
+  }
+
   getWorkerInstanceBySchema(
     entityId: EntityId,
     schemaId: SchemaId,

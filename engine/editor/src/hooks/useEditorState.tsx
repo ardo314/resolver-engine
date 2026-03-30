@@ -3,8 +3,12 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
+  useRef,
   type ReactNode,
 } from "react";
+import { connect } from "nats";
+import { World, Entity } from "@engine/client";
 
 export type PanelId = "entities" | "inspector";
 
@@ -34,103 +38,66 @@ export interface PropertyEntry {
 }
 
 interface EditorState {
+  connected: boolean;
   panels: Record<PanelId, boolean>;
   entities: EntityEntry[];
   selectedEntityId: string | null;
   togglePanel: (id: PanelId) => void;
   selectEntity: (id: string | null) => void;
+  createEntity: () => Promise<void>;
+  deleteEntity: (id: string) => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const EditorContext = createContext<EditorState | null>(null);
 
-const DEMO_ENTITIES: EntityEntry[] = [
-  {
-    id: "1743292800000-0",
-    components: [
-      {
-        componentId: "in-memory.name",
-        schemas: [
-          {
-            schemaId: "in-memory.name",
-            properties: [{ name: "value", value: '"Player"' }],
-          },
-        ],
-      },
-      {
-        componentId: "in-memory.pose",
-        schemas: [
-          {
-            schemaId: "in-memory.pose",
-            properties: [{ name: "value", value: "[0, 1, 0, 0, 0, 0]" }],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "1743292800000-1",
-    components: [
-      {
-        componentId: "in-memory.name",
-        schemas: [
-          {
-            schemaId: "in-memory.name",
-            properties: [{ name: "value", value: '"Camera"' }],
-          },
-        ],
-      },
-      {
-        componentId: "in-memory.follow-pose",
-        schemas: [
-          {
-            schemaId: "in-memory.follow-pose",
-            properties: [{ name: "target", value: '"1743292800000-0"' }],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "1743292800000-2",
-    components: [
-      {
-        componentId: "in-memory.name",
-        schemas: [
-          {
-            schemaId: "in-memory.name",
-            properties: [{ name: "value", value: '"Ground"' }],
-          },
-        ],
-      },
-      {
-        componentId: "in-memory.pose",
-        schemas: [
-          {
-            schemaId: "in-memory.pose",
-            properties: [{ name: "value", value: "[0, 0, 0, 0, 0, 0]" }],
-          },
-        ],
-      },
-      {
-        componentId: "in-memory.parent",
-        schemas: [
-          {
-            schemaId: "in-memory.parent",
-            properties: [{ name: "value", value: '"1743292800000-0"' }],
-          },
-        ],
-      },
-    ],
-  },
-];
-
 export function EditorProvider({ children }: { children: ReactNode }) {
+  const worldRef = useRef<World | null>(null);
+  const [connected, setConnected] = useState(false);
   const [panels, setPanels] = useState<Record<PanelId, boolean>>({
     entities: true,
     inspector: true,
   });
-  const [entities] = useState<EntityEntry[]>(DEMO_ENTITIES);
+  const [entities, setEntities] = useState<EntityEntry[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+
+  const fetchEntities = useCallback(async () => {
+    const world = worldRef.current;
+    if (!world) return;
+    try {
+      const entityList = await world.listEntities();
+
+      const entries: EntityEntry[] = [];
+      for (const entity of entityList) {
+        const components = await entity.getComponentEntries();
+        entries.push({ id: entity.id, components });
+      }
+      setEntities(entries);
+    } catch (e) {
+      console.error("Failed to fetch entities:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    (async () => {
+      try {
+        const nc = await connect({ servers: "ws://localhost:9222" });
+        if (disposed) {
+          await nc.close();
+          return;
+        }
+        worldRef.current = new World(nc);
+        setConnected(true);
+        await fetchEntities();
+      } catch (e) {
+        console.error("NATS connection failed:", e);
+      }
+    })();
+    return () => {
+      disposed = true;
+    };
+  }, [fetchEntities]);
 
   const togglePanel = useCallback((id: PanelId) => {
     setPanels((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -140,14 +107,38 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     setSelectedEntityId(id);
   }, []);
 
+  const createEntityFn = useCallback(async () => {
+    const world = worldRef.current;
+    if (!world) return;
+    await world.createEntity();
+    await fetchEntities();
+  }, [fetchEntities]);
+
+  const deleteEntityFn = useCallback(
+    async (id: string) => {
+      const world = worldRef.current;
+      if (!world) return;
+      await world.deleteEntity(id as Entity["id"]);
+      if (selectedEntityId === id) {
+        setSelectedEntityId(null);
+      }
+      await fetchEntities();
+    },
+    [fetchEntities, selectedEntityId],
+  );
+
   return (
     <EditorContext
       value={{
+        connected,
         panels,
         entities,
         selectedEntityId,
         togglePanel,
         selectEntity,
+        createEntity: createEntityFn,
+        deleteEntity: deleteEntityFn,
+        refresh: fetchEntities,
       }}
     >
       {children}

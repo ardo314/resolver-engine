@@ -21,9 +21,11 @@ export class EntityHandler {
     this.handleCreateEntity();
     this.handleDeleteEntity();
     this.handleHasEntity();
+    this.handleListEntities();
     this.handleAddComponent();
     this.handleRemoveComponent();
     this.handleHasComponent();
+    this.handleGetComponents();
     this.handleGetProperty();
     this.handleSetProperty();
   }
@@ -56,6 +58,16 @@ export class EntityHandler {
         const id = sc.decode(msg.data) as EntityId;
         const result = this.repo.has(id);
         msg.respond(sc.encode(String(result)));
+      }
+    })();
+  }
+
+  private handleListEntities(): void {
+    const sub = this.nc.subscribe(Subjects.listEntities);
+    (async () => {
+      for await (const msg of sub) {
+        const ids = [...this.repo.getAll()];
+        msg.respond(sc.encode(JSON.stringify(ids)));
       }
     })();
   }
@@ -129,6 +141,59 @@ export class EntityHandler {
         };
         const result = this.repo.hasComponent(entityId, componentId);
         msg.respond(sc.encode(String(result)));
+      }
+    })();
+  }
+
+  private handleGetComponents(): void {
+    const sub = this.nc.subscribe(Subjects.getComponents);
+    (async () => {
+      for await (const msg of sub) {
+        try {
+          const entityId = sc.decode(msg.data) as EntityId;
+          const componentIds = this.repo.getComponentIds(entityId);
+          const components = [];
+          for (const componentId of componentIds) {
+            const schemaIds = this.repo.getSchemaIdsForComponent(
+              entityId,
+              componentId,
+            );
+            const worker = this.workers.get(componentId as string);
+            const schemas = [];
+            for (const schemaId of schemaIds) {
+              const schemaDef = worker?.component.schemas.find(
+                (s) => s.id === schemaId,
+              );
+              const propertyNames = schemaDef?.definition.properties
+                ? Object.keys(schemaDef.definition.properties)
+                : [];
+              const properties = [];
+              for (const name of propertyNames) {
+                const instance = this.repo.getWorkerInstanceBySchema(
+                  entityId,
+                  schemaId,
+                ) as Record<string, { get(): Promise<unknown> }> | undefined;
+                let value: unknown = null;
+                if (instance?.[name]) {
+                  value = await instance[name].get();
+                }
+                properties.push({ name, value: JSON.stringify(value) });
+              }
+              schemas.push({
+                schemaId: schemaId as string,
+                properties,
+              });
+            }
+            components.push({
+              componentId: componentId as string,
+              schemas,
+            });
+          }
+          msg.respond(sc.encode(JSON.stringify(components)));
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          msg.respond(sc.encode(JSON.stringify({ error: message })));
+        }
       }
     })();
   }

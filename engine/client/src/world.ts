@@ -25,4 +25,10 @@ export class World {
     const reply = await this.nc.request(Subjects.hasEntity, sc.encode(id));
     return sc.decode(reply.data) === "true";
   }
+
+  async listEntities(): Promise<Entity[]> {
+    const reply = await this.nc.request(Subjects.listEntities, sc.encode(""));
+    const ids = JSON.parse(sc.decode(reply.data)) as string[];
+    return ids.map((id) => new Entity(this.nc, id as EntityId));
+  }
 }

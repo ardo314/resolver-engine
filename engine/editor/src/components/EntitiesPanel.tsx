@@ -1,11 +1,26 @@
 import { useEditor } from "../hooks/useEditorState";
-import { Panel } from "../components/Panel";
+import { Panel } from "./Panel";
 
 export function EntitiesPanel() {
-  const { entities, selectedEntityId, selectEntity } = useEditor();
+  const { entities, selectedEntityId, selectEntity, createEntity, deleteEntity } =
+    useEditor();
 
   return (
     <Panel id="entities" title="Entities">
+      <div className="entity-toolbar">
+        <button className="entity-toolbar-btn" onClick={createEntity} title="Create entity">
+          + New
+        </button>
+        {selectedEntityId && (
+          <button
+            className="entity-toolbar-btn danger"
+            onClick={() => deleteEntity(selectedEntityId)}
+            title="Delete selected entity"
+          >
+            Delete
+          </button>
+        )}
+      </div>
       <ul className="entity-list">
         {entities.map((entity) => {
           const nameComp = entity.components.find(
@@ -14,7 +29,12 @@ export function EntitiesPanel() {
           const nameRaw = nameComp?.schemas[0]?.properties.find(
             (p) => p.name === "value",
           )?.value;
-          const displayName = nameRaw ? JSON.parse(nameRaw) : entity.id;
+          let displayName: string;
+          try {
+            displayName = nameRaw ? JSON.parse(nameRaw) : entity.id;
+          } catch {
+            displayName = entity.id;
+          }
 
           return (
             <li key={entity.id}>
@@ -33,6 +53,9 @@ export function EntitiesPanel() {
             </li>
           );
         })}
+        {entities.length === 0 && (
+          <li className="entity-empty">No entities</li>
+        )}
       </ul>
     </Panel>
   );

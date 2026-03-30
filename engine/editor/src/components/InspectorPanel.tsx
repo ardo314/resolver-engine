@@ -1,5 +1,5 @@
 import { useEditor } from "../hooks/useEditorState";
-import { Panel } from "../components/Panel";
+import { Panel } from "./Panel";
 
 export function InspectorPanel() {
   const { entities, selectedEntityId } = useEditor();

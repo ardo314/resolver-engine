@@ -308,3 +308,54 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Connection Banner ── */
+.connection-banner {
+  padding: 6px 12px;
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  font-size: 12px;
+  text-align: center;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.3);
+  flex-shrink: 0;
+}
+
+/* ── Entity Toolbar ── */
+.entity-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.entity-toolbar-btn {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.entity-toolbar-btn:hover {
+  background: var(--bg-selected);
+  color: var(--text-heading);
+}
+
+.entity-toolbar-btn.danger {
+  color: #f87171;
+}
+
+.entity-toolbar-btn.danger:hover {
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.entity-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  list-style: none;
+}

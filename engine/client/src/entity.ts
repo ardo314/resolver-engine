@@ -170,4 +170,20 @@ export class Entity {
     }
     return createRemoteSchemaProxy(this.nc, this.id, schema);
   }
+
+  async getComponentEntries(): Promise<
+    {
+      componentId: string;
+      schemas: {
+        schemaId: string;
+        properties: { name: string; value: string }[];
+      }[];
+    }[]
+  > {
+    const reply = await this.nc.request(
+      Subjects.getComponents,
+      sc.encode(this.id),
+    );
+    return JSON.parse(sc.decode(reply.data));
+  }
 }
