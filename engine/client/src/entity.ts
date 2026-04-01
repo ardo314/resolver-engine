@@ -1,7 +1,7 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type {
-  ComponentProxy,
+  ComponentReference,
   EntityId,
   SchemaProxy,
   SchemaId,
@@ -61,17 +61,17 @@ function createRemoteSchemaProxy<S extends Schema>(
   return proxy as SchemaProxy<S>;
 }
 
-function createRemoteComponentProxy<C extends Component>(
+function createRemoteComponentReference<C extends Component>(
   nc: NatsConnection,
   entityId: EntityId,
   component: C,
-): ComponentProxy<C> {
+): ComponentReference<C> {
   const merged: Record<string, unknown> = {};
   for (const schema of component.schemas) {
     const schemaProxy = createRemoteSchemaProxy(nc, entityId, schema);
     Object.assign(merged, schemaProxy);
   }
-  return merged as ComponentProxy<C>;
+  return merged as ComponentReference<C>;
 }
 
 export class Entity {
@@ -82,7 +82,7 @@ export class Entity {
 
   async addComponent<C extends Component>(
     component: C,
-  ): Promise<ComponentProxy<C>> {
+  ): Promise<ComponentReference<C>> {
     const reply = await this.nc.request(
       Subjects.addComponent,
       sc.encode(
@@ -94,7 +94,7 @@ export class Entity {
       error?: string;
     };
     if (result.error) throw new Error(result.error);
-    return createRemoteComponentProxy(this.nc, this.id, component);
+    return createRemoteComponentReference(this.nc, this.id, component);
   }
 
   async removeComponent<C extends Component>(component: C): Promise<void> {
@@ -118,7 +118,7 @@ export class Entity {
 
   async getComponent<C extends Component>(
     component: C,
-  ): Promise<ComponentProxy<C> | null>;
+  ): Promise<ComponentReference<C> | null>;
   async getComponent<S extends Schema>(
     schema: S,
   ): Promise<SchemaProxy<S> | null>;
@@ -126,7 +126,7 @@ export class Entity {
     if (isComponent(arg)) {
       const has = await this.hasComponent(arg);
       if (!has) return null;
-      return createRemoteComponentProxy(this.nc, this.id, arg);
+      return createRemoteComponentReference(this.nc, this.id, arg);
     }
     // Schema path — check if entity has this schema via hasComponent on a
     // synthetic single-schema component (schemaId == componentId lookup).

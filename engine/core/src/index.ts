@@ -12,5 +12,9 @@ export type {
   InferSchemaMethods,
 } from "./schema.js";
 export { defineComponent, isComponent } from "./component.js";
-export type { Component, ComponentProxy, ComponentId } from "./component.js";
+export type {
+  Component,
+  ComponentReference,
+  ComponentId,
+} from "./component.js";
 export { Subjects } from "./subjects.js";

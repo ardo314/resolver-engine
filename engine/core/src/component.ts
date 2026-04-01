@@ -28,7 +28,7 @@ type UnionToIntersection<U> = (
   ? I
   : never;
 
-export type ComponentProxy<C extends Component> = UnionToIntersection<
+export type ComponentReference<C extends Component> = UnionToIntersection<
   SchemaProxy<C["schemas"][number]>
 >;
 
