@@ -32,7 +32,7 @@ A first-class data/behaviour contract identified by a `SchemaId` (explicit brand
 
 Schemas carry a `__type: "schema"` tag for runtime discrimination.
 
-`SchemaProxy<S>` infers a TypeScript interface from a schema's definition, producing typed async get/set properties and typed method signatures.
+`SchemaReference<S>` infers a TypeScript interface from a schema's definition, producing typed async get/set properties and typed method signatures.
 
 ### Component
 
@@ -43,11 +43,11 @@ A composition of one or more schemas. Defined via `defineComponent(...schemas)`.
 - Schema overlap across different components on the same entity is disallowed; `addComponent` will fail if any of the component's schemas are already provided by an existing component.
 - Components carry a `__type: "component"` tag for runtime discrimination.
 
-`ComponentReference<C>` is the intersection of all `SchemaProxy<S>` for each schema in the component.
+`ComponentReference<C>` is the intersection of all `SchemaReference<S>` for each schema in the component.
 
 ### Duck-typing by Schema
 
-Entities can be duck-typed by schema. `getComponent` accepts either a `Component` (returns `ComponentReference`) or a `Schema` (returns `SchemaProxy` scoped to only that schema's properties/methods). This allows code to query entities by capability without knowing the full component definition.
+Entities can be duck-typed by schema. `getComponent` accepts either a `Component` (returns `ComponentReference`) or a `Schema` (returns `SchemaReference` scoped to only that schema's properties/methods). This allows code to query entities by capability without knowing the full component definition.
 
 ### Component Worker
 

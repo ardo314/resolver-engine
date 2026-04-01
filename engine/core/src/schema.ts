@@ -55,7 +55,7 @@ export type InferSchemaMethods<
   [K in keyof M]: InferSchemaMethod<M[K]>;
 };
 
-export type SchemaProxy<S extends Schema> =
+export type SchemaReference<S extends Schema> =
   (S["definition"]["properties"] extends Record<
     string,
     SchemaPropertyDefinition

@@ -3,7 +3,7 @@ export { defineSchema, isSchema } from "./schema.js";
 export type {
   Schema,
   SchemaId,
-  SchemaProxy,
+  SchemaReference,
   SchemaDefinition,
   SchemaPropertyDefinition,
   SchemaMethodDefinition,

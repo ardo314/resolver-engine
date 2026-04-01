@@ -1,4 +1,4 @@
-import type { Schema, SchemaProxy } from "./schema.js";
+import type { Schema, SchemaReference } from "./schema.js";
 
 export type ComponentId = string & { readonly __brand: unique symbol };
 
@@ -29,7 +29,7 @@ type UnionToIntersection<U> = (
   : never;
 
 export type ComponentReference<C extends Component> = UnionToIntersection<
-  SchemaProxy<C["schemas"][number]>
+  SchemaReference<C["schemas"][number]>
 >;
 
 export function isComponent(value: unknown): value is Component {

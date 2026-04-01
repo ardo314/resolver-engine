@@ -3,18 +3,18 @@ import { StringCodec } from "nats";
 import type {
   ComponentReference,
   EntityId,
-  SchemaProxy,
+  SchemaReference,
   SchemaId,
 } from "@engine/core";
 import { Subjects, Component, Schema, isComponent } from "@engine/core";
 
 const sc = StringCodec();
 
-function createRemoteSchemaProxy<S extends Schema>(
+function createRemoteSchemaReference<S extends Schema>(
   nc: NatsConnection,
   entityId: EntityId,
   schema: S,
-): SchemaProxy<S> {
+): SchemaReference<S> {
   const proxy: Record<
     string,
     { get(): Promise<unknown>; set(v: unknown): Promise<void> }
@@ -58,7 +58,7 @@ function createRemoteSchemaProxy<S extends Schema>(
       };
     }
   }
-  return proxy as SchemaProxy<S>;
+  return proxy as SchemaReference<S>;
 }
 
 function createRemoteComponentReference<C extends Component>(
@@ -68,8 +68,8 @@ function createRemoteComponentReference<C extends Component>(
 ): ComponentReference<C> {
   const merged: Record<string, unknown> = {};
   for (const schema of component.schemas) {
-    const schemaProxy = createRemoteSchemaProxy(nc, entityId, schema);
-    Object.assign(merged, schemaProxy);
+    const schemaRef = createRemoteSchemaReference(nc, entityId, schema);
+    Object.assign(merged, schemaRef);
   }
   return merged as ComponentReference<C>;
 }
@@ -121,7 +121,7 @@ export class Entity {
   ): Promise<ComponentReference<C> | null>;
   async getComponent<S extends Schema>(
     schema: S,
-  ): Promise<SchemaProxy<S> | null>;
+  ): Promise<SchemaReference<S> | null>;
   async getComponent(arg: Component | Schema): Promise<unknown> {
     if (isComponent(arg)) {
       const has = await this.hasComponent(arg);
@@ -168,7 +168,7 @@ export class Entity {
         }
       }
     }
-    return createRemoteSchemaProxy(this.nc, this.id, schema);
+    return createRemoteSchemaReference(this.nc, this.id, schema);
   }
 
   async getComponentEntries(): Promise<
