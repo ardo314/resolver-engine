@@ -2,19 +2,44 @@ import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type { EntityId, ComponentId, SchemaId } from "@engine/core";
 import { Subjects } from "@engine/core";
-import type { ComponentWorker } from "@engine/module";
+import type { ComponentWorkerClass } from "@engine/module";
+import {
+  getWorkerComponent,
+  getWorkerFields,
+  createWorkerAccessors,
+} from "@engine/module";
 import { EntityRepository } from "./entity-repository.js";
 
 const sc = StringCodec();
 
+interface RegisteredWorker {
+  readonly workerClass: ComponentWorkerClass;
+  readonly schemaIds: SchemaId[];
+  readonly fields: readonly {
+    readonly name: string;
+    readonly schema: { parse(v: unknown): unknown };
+  }[];
+  readonly schemas: readonly {
+    readonly id: SchemaId;
+    readonly definition: { readonly properties?: Record<string, unknown> };
+  }[];
+}
+
 export class EntityHandler {
   private readonly repo = new EntityRepository();
-  private readonly workers = new Map<string, ComponentWorker>();
+  private readonly workers = new Map<string, RegisteredWorker>();
 
   constructor(private readonly nc: NatsConnection) {}
 
-  registerWorker(worker: ComponentWorker): void {
-    this.workers.set(worker.component.id as string, worker);
+  registerWorker(workerClass: ComponentWorkerClass): void {
+    const component = getWorkerComponent(workerClass);
+    const fields = getWorkerFields(workerClass);
+    this.workers.set(component.id as string, {
+      workerClass,
+      schemaIds: component.schemas.map((s) => s.id),
+      fields,
+      schemas: component.schemas,
+    });
   }
 
   async listen(): Promise<void> {
@@ -92,9 +117,13 @@ export class EntityHandler {
             );
             continue;
           }
-          const schemaIds = worker.component.schemas.map((s) => s.id);
-          const instance = worker.create();
-          this.repo.addComponent(entityId, componentId, schemaIds, instance);
+          const { accessors } = createWorkerAccessors(worker.workerClass);
+          this.repo.addComponent(
+            entityId,
+            componentId,
+            worker.schemaIds,
+            accessors,
+          );
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -114,9 +143,7 @@ export class EntityHandler {
             componentId: ComponentId;
           };
           const worker = this.workers.get(componentId as string);
-          const schemaIds = worker
-            ? worker.component.schemas.map((s) => s.id)
-            : [];
+          const schemaIds = worker ? worker.schemaIds : [];
           const result = this.repo.removeComponent(
             entityId,
             componentId,
@@ -161,9 +188,7 @@ export class EntityHandler {
             const worker = this.workers.get(componentId as string);
             const schemas = [];
             for (const schemaId of schemaIds) {
-              const schemaDef = worker?.component.schemas.find(
-                (s) => s.id === schemaId,
-              );
+              const schemaDef = worker?.schemas.find((s) => s.id === schemaId);
               const propertyNames = schemaDef?.definition.properties
                 ? Object.keys(schemaDef.definition.properties)
                 : [];

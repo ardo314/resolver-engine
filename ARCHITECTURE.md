@@ -51,7 +51,16 @@ Entities can be duck-typed by schema. `getComponent` accepts either a `Component
 
 ### Component Worker
 
-A `ComponentWorker` pairs a `Component` with a factory that creates a `ComponentReference` implementing all of the component's schemas. Workers are registered with the `EntityHandler` on the backend at startup.
+A `ComponentWorker` is a class that implements the runtime behaviour for a component's schemas. Workers are defined using two decorators:
+
+- **`@Implements(...schemas)`** — Class decorator. Declares which engine schemas (defined via `defineSchema`) the worker satisfies. The component identity is derived from these schemas at registration time (same deterministic ID as `defineComponent`).
+- **`@SerializeField(zodSchema)`** — Field decorator. Marks a class field as a serializable property backed by a Zod schema. The field name must match the corresponding schema property name. The Zod schema is used for runtime validation on `set`.
+
+Workers extend the abstract `ComponentWorker` base class. The engine instantiates workers via `new WorkerClass()` when a component is added to an entity. The decorator metadata (via TC39 `Symbol.metadata`) is used to auto-generate async `get`/`set` accessors that bridge plain class fields to the accessor interface expected by the `EntityHandler`.
+
+Worker classes are registered with the `EntityHandler` on the backend at startup.
+
+> **Zod schemas vs engine schemas:** Zod schemas (`z.string()`, `poseSchema`, etc.) describe data shapes for validation. Engine schemas (`defineSchema(...)`) are first-class contracts with an ID, properties, and methods. `@SerializeField` takes a Zod schema; `@Implements` takes engine schemas.
 
 ## Serialization
 

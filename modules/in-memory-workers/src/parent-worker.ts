@@ -1,18 +1,9 @@
-import { parentComponent } from "@ardo314/in-memory";
-import { EntityId, entityIdSchema } from "@engine/core";
-import { defineComponentWorker } from "@engine/module";
+import { parentSchema } from "@ardo314/in-memory";
+import { type EntityId, entityIdSchema } from "@engine/core";
+import { ComponentWorker, Implements, SerializeField } from "@engine/module";
 
-export const parentWorker = defineComponentWorker(parentComponent, () => {
-  let _value = entityIdSchema.parse("");
-
-  return {
-    value: {
-      async get() {
-        return _value;
-      },
-      async set(v: EntityId) {
-        _value = entityIdSchema.parse(v);
-      },
-    },
-  };
-});
+@Implements(parentSchema)
+export class ParentWorker extends ComponentWorker {
+  @SerializeField(entityIdSchema)
+  value: EntityId = entityIdSchema.parse("");
+}

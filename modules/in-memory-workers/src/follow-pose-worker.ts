@@ -1,21 +1,9 @@
-import { followPoseComponent } from "@ardo314/in-memory";
-import { EntityId, entityIdSchema } from "@engine/core";
-import { defineComponentWorker } from "@engine/module";
+import { followPoseSchema } from "@ardo314/in-memory";
+import { type EntityId, entityIdSchema } from "@engine/core";
+import { ComponentWorker, Implements, SerializeField } from "@engine/module";
 
-export const followPoseWorker = defineComponentWorker(
-  followPoseComponent,
-  () => {
-    let _target: EntityId = entityIdSchema.parse("");
-
-    return {
-      target: {
-        async get() {
-          return _target;
-        },
-        async set(v: EntityId) {
-          _target = v;
-        },
-      },
-    };
-  },
-);
+@Implements(followPoseSchema)
+export class FollowPoseWorker extends ComponentWorker {
+  @SerializeField(entityIdSchema)
+  target: EntityId = entityIdSchema.parse("");
+}

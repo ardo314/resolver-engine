@@ -1,17 +1,9 @@
-import { nameComponent } from "@ardo314/in-memory";
-import { defineComponentWorker } from "@engine/module";
+import { nameSchema } from "@ardo314/in-memory";
+import { ComponentWorker, Implements, SerializeField } from "@engine/module";
+import { z } from "zod";
 
-export const nameWorker = defineComponentWorker(nameComponent, () => {
-  let _value = "";
-
-  return {
-    value: {
-      async get() {
-        return _value;
-      },
-      async set(v: string) {
-        _value = v;
-      },
-    },
-  };
-});
+@Implements(nameSchema)
+export class NameWorker extends ComponentWorker {
+  @SerializeField(z.string())
+  value = "";
+}
