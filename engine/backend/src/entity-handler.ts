@@ -1,28 +1,17 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
-import type { EntityId, ComponentId, SchemaId } from "@engine/core";
-import { Subjects } from "@engine/core";
+import type { EntityId, ComponentId } from "@engine/core";
+import { Subjects, getAllComposites, getAllProperties } from "@engine/core";
 import type { ComponentWorkerClass } from "@engine/module";
-import {
-  getWorkerComponent,
-  getWorkerFields,
-  createWorkerAccessors,
-} from "@engine/module";
+import { getWorkerComponent, createWorkerAccessors } from "@engine/module";
 import { EntityRepository } from "./entity-repository.js";
 
 const sc = StringCodec();
 
 interface RegisteredWorker {
   readonly workerClass: ComponentWorkerClass;
-  readonly schemaIds: SchemaId[];
-  readonly fields: readonly {
-    readonly name: string;
-    readonly schema: { parse(v: unknown): unknown };
-  }[];
-  readonly schemas: readonly {
-    readonly id: SchemaId;
-    readonly definition: { readonly properties?: Record<string, unknown> };
-  }[];
+  readonly compositeIds: ComponentId[];
+  readonly propertyNames: string[];
 }
 
 export class EntityHandler {
@@ -33,12 +22,12 @@ export class EntityHandler {
 
   registerWorker(workerClass: ComponentWorkerClass): void {
     const component = getWorkerComponent(workerClass);
-    const fields = getWorkerFields(workerClass);
+    const composites = getAllComposites(component);
+    const properties = getAllProperties(component);
     this.workers.set(component.id as string, {
       workerClass,
-      schemaIds: component.schemas.map((s) => s.id),
-      fields,
-      schemas: component.schemas,
+      compositeIds: composites.map((c) => c.id),
+      propertyNames: Object.keys(properties),
     });
   }
 
@@ -121,7 +110,7 @@ export class EntityHandler {
           this.repo.addComponent(
             entityId,
             componentId,
-            worker.schemaIds,
+            worker.compositeIds,
             accessors,
           );
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
@@ -143,11 +132,11 @@ export class EntityHandler {
             componentId: ComponentId;
           };
           const worker = this.workers.get(componentId as string);
-          const schemaIds = worker ? worker.schemaIds : [];
+          const compositeIds = worker ? worker.compositeIds : [];
           const result = this.repo.removeComponent(
             entityId,
             componentId,
-            schemaIds,
+            compositeIds,
           );
           msg.respond(sc.encode(String(result)));
         } catch (e) {
@@ -181,37 +170,23 @@ export class EntityHandler {
           const componentIds = this.repo.getComponentIds(entityId);
           const components = [];
           for (const componentId of componentIds) {
-            const schemaIds = this.repo.getSchemaIdsForComponent(
+            const worker = this.workers.get(componentId as string);
+            const propertyNames = worker ? worker.propertyNames : [];
+            const instance = this.repo.getWorkerInstance(
               entityId,
               componentId,
-            );
-            const worker = this.workers.get(componentId as string);
-            const schemas = [];
-            for (const schemaId of schemaIds) {
-              const schemaDef = worker?.schemas.find((s) => s.id === schemaId);
-              const propertyNames = schemaDef?.definition.properties
-                ? Object.keys(schemaDef.definition.properties)
-                : [];
-              const properties = [];
-              for (const name of propertyNames) {
-                const instance = this.repo.getWorkerInstanceBySchema(
-                  entityId,
-                  schemaId,
-                ) as Record<string, { get(): Promise<unknown> }> | undefined;
-                let value: unknown = null;
-                if (instance?.[name]) {
-                  value = await instance[name].get();
-                }
-                properties.push({ name, value: JSON.stringify(value) });
+            ) as Record<string, { get(): Promise<unknown> }> | undefined;
+            const properties = [];
+            for (const name of propertyNames) {
+              let value: unknown = null;
+              if (instance?.[name]) {
+                value = await instance[name].get();
               }
-              schemas.push({
-                schemaId: schemaId as string,
-                properties,
-              });
+              properties.push({ name, value: JSON.stringify(value) });
             }
             components.push({
               componentId: componentId as string,
-              schemas,
+              properties,
             });
           }
           msg.respond(sc.encode(JSON.stringify(components)));
@@ -228,16 +203,16 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { entityId, schemaId, property } = JSON.parse(
+          const { entityId, componentId, property } = JSON.parse(
             sc.decode(msg.data),
           ) as {
             entityId: EntityId;
-            schemaId: SchemaId;
+            componentId: ComponentId;
             property: string;
           };
-          const instance = this.repo.getWorkerInstanceBySchema(
+          const instance = this.repo.getWorkerInstance(
             entityId,
-            schemaId,
+            componentId,
           ) as Record<string, { get(): Promise<unknown> }> | undefined;
           if (!instance || !instance[property]) {
             msg.respond(
@@ -262,17 +237,17 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { entityId, schemaId, property, value } = JSON.parse(
+          const { entityId, componentId, property, value } = JSON.parse(
             sc.decode(msg.data),
           ) as {
             entityId: EntityId;
-            schemaId: SchemaId;
+            componentId: ComponentId;
             property: string;
             value: unknown;
           };
-          const instance = this.repo.getWorkerInstanceBySchema(
+          const instance = this.repo.getWorkerInstance(
             entityId,
-            schemaId,
+            componentId,
           ) as Record<string, { set(v: unknown): Promise<void> }> | undefined;
           if (!instance || !instance[property]) {
             msg.respond(

@@ -1,4 +1,4 @@
-import type { EntityId, ComponentId, SchemaId } from "@engine/core";
+import type { EntityId, ComponentId } from "@engine/core";
 
 export class EntityRepository {
   private readonly entities = new Set<EntityId>();
@@ -7,23 +7,23 @@ export class EntityRepository {
   /** entityId → componentId → worker proxy instance */
   private readonly components = new Map<EntityId, Map<ComponentId, unknown>>();
 
-  /** entityId → schemaId → componentId (for fast schema lookup) */
-  private readonly schemaIndex = new Map<
+  /** entityId → compositeComponentId → composed componentId (for composite lookup) */
+  private readonly compositeIndex = new Map<
     EntityId,
-    Map<SchemaId, ComponentId>
+    Map<ComponentId, ComponentId>
   >();
 
   create(): EntityId {
     const id = `${Date.now()}-${this.nextId++}` as EntityId;
     this.entities.add(id);
     this.components.set(id, new Map());
-    this.schemaIndex.set(id, new Map());
+    this.compositeIndex.set(id, new Map());
     return id;
   }
 
   delete(id: EntityId): boolean {
     this.components.delete(id);
-    this.schemaIndex.delete(id);
+    this.compositeIndex.delete(id);
     return this.entities.delete(id);
   }
 
@@ -38,12 +38,12 @@ export class EntityRepository {
   addComponent(
     entityId: EntityId,
     componentId: ComponentId,
-    schemaIds: SchemaId[],
+    compositeIds: ComponentId[],
     workerInstance: unknown,
   ): void {
     const entityComponents = this.components.get(entityId);
-    const entitySchemas = this.schemaIndex.get(entityId);
-    if (!entityComponents || !entitySchemas) {
+    const entityComposites = this.compositeIndex.get(entityId);
+    if (!entityComponents || !entityComposites) {
       throw new Error(`Entity ${entityId as string} does not exist`);
     }
     if (entityComponents.has(componentId)) {
@@ -51,74 +51,71 @@ export class EntityRepository {
         `Component ${componentId as string} already exists on entity ${entityId as string}`,
       );
     }
-    for (const schemaId of schemaIds) {
-      if (entitySchemas.has(schemaId)) {
-        const existing = entitySchemas.get(schemaId)!;
+    // Check if the component is already provided as a composite of another component
+    if (entityComposites.has(componentId)) {
+      const existing = entityComposites.get(componentId)!;
+      throw new Error(
+        `Component ${componentId as string} is already provided as a composite of ${existing as string} on entity ${entityId as string}`,
+      );
+    }
+    // Check that none of the composites are already present (as direct or composite)
+    for (const compositeId of compositeIds) {
+      if (entityComponents.has(compositeId)) {
         throw new Error(
-          `Schema ${schemaId as string} already provided by component ${existing as string} on entity ${entityId as string}`,
+          `Composite ${compositeId as string} is already a direct component on entity ${entityId as string}`,
+        );
+      }
+      if (entityComposites.has(compositeId)) {
+        const existing = entityComposites.get(compositeId)!;
+        throw new Error(
+          `Composite ${compositeId as string} is already provided by component ${existing as string} on entity ${entityId as string}`,
         );
       }
     }
     entityComponents.set(componentId, workerInstance);
-    for (const schemaId of schemaIds) {
-      entitySchemas.set(schemaId, componentId);
+    for (const compositeId of compositeIds) {
+      entityComposites.set(compositeId, componentId);
     }
   }
 
   removeComponent(
     entityId: EntityId,
     componentId: ComponentId,
-    schemaIds: SchemaId[],
+    compositeIds: ComponentId[],
   ): boolean {
     const entityComponents = this.components.get(entityId);
-    const entitySchemas = this.schemaIndex.get(entityId);
-    if (!entityComponents || !entitySchemas) return false;
+    const entityComposites = this.compositeIndex.get(entityId);
+    if (!entityComponents || !entityComposites) return false;
     if (!entityComponents.delete(componentId)) return false;
-    for (const schemaId of schemaIds) {
-      entitySchemas.delete(schemaId);
+    for (const compositeId of compositeIds) {
+      entityComposites.delete(compositeId);
     }
     return true;
   }
 
   hasComponent(entityId: EntityId, componentId: ComponentId): boolean {
-    return this.components.get(entityId)?.has(componentId) ?? false;
-  }
-
-  hasSchema(entityId: EntityId, schemaId: SchemaId): boolean {
-    return this.schemaIndex.get(entityId)?.has(schemaId) ?? false;
+    const direct = this.components.get(entityId)?.has(componentId) ?? false;
+    if (direct) return true;
+    return this.compositeIndex.get(entityId)?.has(componentId) ?? false;
   }
 
   getWorkerInstance(
     entityId: EntityId,
     componentId: ComponentId,
   ): unknown | undefined {
-    return this.components.get(entityId)?.get(componentId);
+    // Direct component
+    const direct = this.components.get(entityId)?.get(componentId);
+    if (direct !== undefined) return direct;
+    // Composite → resolve to composed component's worker
+    const composedId = this.compositeIndex.get(entityId)?.get(componentId);
+    if (composedId) {
+      return this.components.get(entityId)?.get(composedId);
+    }
+    return undefined;
   }
 
   getComponentIds(entityId: EntityId): ComponentId[] {
     const map = this.components.get(entityId);
     return map ? [...map.keys()] : [];
-  }
-
-  getSchemaIdsForComponent(
-    entityId: EntityId,
-    componentId: ComponentId,
-  ): SchemaId[] {
-    const entitySchemas = this.schemaIndex.get(entityId);
-    if (!entitySchemas) return [];
-    const result: SchemaId[] = [];
-    for (const [schemaId, cId] of entitySchemas) {
-      if (cId === componentId) result.push(schemaId);
-    }
-    return result;
-  }
-
-  getWorkerInstanceBySchema(
-    entityId: EntityId,
-    schemaId: SchemaId,
-  ): unknown | undefined {
-    const componentId = this.schemaIndex.get(entityId)?.get(schemaId);
-    if (!componentId) return undefined;
-    return this.components.get(entityId)?.get(componentId);
   }
 }

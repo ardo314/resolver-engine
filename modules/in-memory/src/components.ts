@@ -1,32 +1,27 @@
-import { defineSchema, defineComponent, entityIdSchema } from "@engine/core";
+import { defineComponent, entityIdSchema } from "@engine/core";
 import { poseSchema } from "@ardo314/core";
 import { z } from "zod";
 
-export const nameSchema = defineSchema("in-memory.name", {
+export const nameComponent = defineComponent("in-memory.name", {
   properties: {
-    value: z.string(),
+    name: z.string(),
   },
 });
 
-export const parentSchema = defineSchema("in-memory.parent", {
+export const parentComponent = defineComponent("in-memory.parent", {
   properties: {
-    value: entityIdSchema,
+    parent: entityIdSchema,
   },
 });
 
-export const posePropertySchema = defineSchema("in-memory.pose", {
+export const poseComponent = defineComponent("in-memory.pose", {
   properties: {
-    value: poseSchema,
+    pose: poseSchema,
   },
 });
 
-export const followPoseSchema = defineSchema("in-memory.follow-pose", {
+export const followPoseComponent = defineComponent("in-memory.follow-pose", {
   properties: {
     target: entityIdSchema,
   },
 });
-
-export const nameComponent = defineComponent(nameSchema);
-export const parentComponent = defineComponent(parentSchema);
-export const poseComponent = defineComponent(posePropertySchema);
-export const followPoseComponent = defineComponent(followPoseSchema);

@@ -26,8 +26,8 @@ export function EntitiesPanel() {
           const nameComp = entity.components.find(
             (c) => c.componentId === "in-memory.name",
           );
-          const nameRaw = nameComp?.schemas[0]?.properties.find(
-            (p) => p.name === "value",
+          const nameRaw = nameComp?.properties.find(
+            (p) => p.name === "name",
           )?.value;
           let displayName: string;
           try {

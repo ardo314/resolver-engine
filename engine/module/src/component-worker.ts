@@ -1,10 +1,9 @@
 import type { z } from "zod";
-import type { Component, Schema } from "@engine/core";
-import { defineComponent } from "@engine/core";
+import type { Component } from "@engine/core";
 
 // --- Metadata keys ---
 
-const SCHEMAS_KEY = "__worker_schemas__";
+const COMPONENT_KEY = "__worker_component__";
 const FIELDS_KEY = "__worker_fields__";
 
 // --- Types ---
@@ -22,12 +21,12 @@ export abstract class ComponentWorker {}
 
 // --- Decorators ---
 
-export function Implements(...schemas: Schema[]) {
+export function Implements(component: Component) {
   return function <T extends abstract new (...args: any[]) => ComponentWorker>(
     target: T,
     context: ClassDecoratorContext<T>,
   ) {
-    context.metadata[SCHEMAS_KEY] = schemas;
+    context.metadata[COMPONENT_KEY] = component;
   };
 }
 
@@ -41,13 +40,6 @@ export function SerializeField(schema: z.ZodType) {
 
 // --- Metadata access ---
 
-export function getWorkerSchemas(
-  workerClass: ComponentWorkerClass,
-): readonly Schema[] {
-  const metadata = workerClass[Symbol.metadata];
-  return (metadata?.[SCHEMAS_KEY] as Schema[] | undefined) ?? [];
-}
-
 export function getWorkerFields(
   workerClass: ComponentWorkerClass,
 ): readonly SerializedFieldInfo[] {
@@ -58,11 +50,12 @@ export function getWorkerFields(
 export function getWorkerComponent(
   workerClass: ComponentWorkerClass,
 ): Component {
-  const schemas = getWorkerSchemas(workerClass);
-  if (schemas.length === 0) {
+  const metadata = workerClass[Symbol.metadata];
+  const component = metadata?.[COMPONENT_KEY] as Component | undefined;
+  if (!component) {
     throw new Error(`Worker ${workerClass.name} has no @Implements decorator`);
   }
-  return defineComponent(...schemas);
+  return component;
 }
 
 // --- Instance creation ---

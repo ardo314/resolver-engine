@@ -1,33 +1,86 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
-import type {
-  ComponentReference,
-  EntityId,
-  SchemaReference,
-  SchemaId,
-} from "@engine/core";
-import { Subjects, Component, Schema, isComponent } from "@engine/core";
+import type { ComponentReference, EntityId } from "@engine/core";
+import { Subjects, type Component, getAllProperties } from "@engine/core";
 
 const sc = StringCodec();
 
-function createRemoteSchemaReference<S extends Schema>(
+function createRemoteComponentReference<C extends Component>(
   nc: NatsConnection,
   entityId: EntityId,
-  schema: S,
-): SchemaReference<S> {
+  component: C,
+): ComponentReference<C> {
   const proxy: Record<
     string,
     { get(): Promise<unknown>; set(v: unknown): Promise<void> }
   > = {};
-  const props = schema.definition.properties;
-  if (props) {
-    for (const key of Object.keys(props)) {
+  const allProps = getAllProperties(component);
+  for (const key of Object.keys(allProps)) {
+    proxy[key] = {
+      async get() {
+        const reply = await nc.request(
+          Subjects.getProperty,
+          sc.encode(
+            JSON.stringify({
+              entityId,
+              componentId: component.id,
+              property: key,
+            }),
+          ),
+        );
+        const result = JSON.parse(sc.decode(reply.data)) as {
+          value?: unknown;
+          error?: string;
+        };
+        if (result.error) throw new Error(result.error);
+        return result.value;
+      },
+      async set(value: unknown) {
+        const reply = await nc.request(
+          Subjects.setProperty,
+          sc.encode(
+            JSON.stringify({
+              entityId,
+              componentId: component.id,
+              property: key,
+              value,
+            }),
+          ),
+        );
+        const result = JSON.parse(sc.decode(reply.data)) as {
+          ok?: boolean;
+          error?: string;
+        };
+        if (result.error) throw new Error(result.error);
+      },
+    };
+  }
+  return proxy as ComponentReference<C>;
+}
+
+function createScopedComponentReference<C extends Component>(
+  nc: NatsConnection,
+  entityId: EntityId,
+  component: C,
+  scopedComponent: Component,
+): ComponentReference<C> {
+  const proxy: Record<
+    string,
+    { get(): Promise<unknown>; set(v: unknown): Promise<void> }
+  > = {};
+  const ownProps = scopedComponent.definition.properties;
+  if (ownProps) {
+    for (const key of Object.keys(ownProps)) {
       proxy[key] = {
         async get() {
           const reply = await nc.request(
             Subjects.getProperty,
             sc.encode(
-              JSON.stringify({ entityId, schemaId: schema.id, property: key }),
+              JSON.stringify({
+                entityId,
+                componentId: component.id,
+                property: key,
+              }),
             ),
           );
           const result = JSON.parse(sc.decode(reply.data)) as {
@@ -43,7 +96,7 @@ function createRemoteSchemaReference<S extends Schema>(
             sc.encode(
               JSON.stringify({
                 entityId,
-                schemaId: schema.id,
+                componentId: component.id,
                 property: key,
                 value,
               }),
@@ -58,20 +111,7 @@ function createRemoteSchemaReference<S extends Schema>(
       };
     }
   }
-  return proxy as SchemaReference<S>;
-}
-
-function createRemoteComponentReference<C extends Component>(
-  nc: NatsConnection,
-  entityId: EntityId,
-  component: C,
-): ComponentReference<C> {
-  const merged: Record<string, unknown> = {};
-  for (const schema of component.schemas) {
-    const schemaRef = createRemoteSchemaReference(nc, entityId, schema);
-    Object.assign(merged, schemaRef);
-  }
-  return merged as ComponentReference<C>;
+  return proxy as ComponentReference<C>;
 }
 
 export class Entity {
@@ -118,66 +158,16 @@ export class Entity {
 
   async getComponent<C extends Component>(
     component: C,
-  ): Promise<ComponentReference<C> | null>;
-  async getComponent<S extends Schema>(
-    schema: S,
-  ): Promise<SchemaReference<S> | null>;
-  async getComponent(arg: Component | Schema): Promise<unknown> {
-    if (isComponent(arg)) {
-      const has = await this.hasComponent(arg);
-      if (!has) return null;
-      return createRemoteComponentReference(this.nc, this.id, arg);
-    }
-    // Schema path — check if entity has this schema via hasComponent on a
-    // synthetic single-schema component (schemaId == componentId lookup).
-    // We use getProperty with a probe to check existence; alternatively we
-    // could add a hasSchema subject. For now, try to build the proxy and
-    // return null on error.
-    const schema = arg as Schema;
-    const reply = await this.nc.request(
-      Subjects.hasComponent,
-      sc.encode(JSON.stringify({ entityId: this.id, componentId: schema.id })),
-    );
-    // For single-schema components, componentId == schemaId.
-    // For multi-schema components, we need a different check. We'll iterate
-    // any known schemas. As a pragmatic approach: create a proxy and if the
-    // first property get fails, the schema isn't present.
-    // Better: let's use the property to probe existence.
-    const props = schema.definition.properties;
-    if (props) {
-      const firstKey = Object.keys(props)[0];
-      if (firstKey) {
-        try {
-          const probeReply = await this.nc.request(
-            Subjects.getProperty,
-            sc.encode(
-              JSON.stringify({
-                entityId: this.id,
-                schemaId: schema.id,
-                property: firstKey,
-              }),
-            ),
-          );
-          const result = JSON.parse(sc.decode(probeReply.data)) as {
-            value?: unknown;
-            error?: string;
-          };
-          if (result.error) return null;
-        } catch {
-          return null;
-        }
-      }
-    }
-    return createRemoteSchemaReference(this.nc, this.id, schema);
+  ): Promise<ComponentReference<C> | null> {
+    const has = await this.hasComponent(component);
+    if (!has) return null;
+    return createRemoteComponentReference(this.nc, this.id, component);
   }
 
   async getComponentEntries(): Promise<
     {
       componentId: string;
-      schemas: {
-        schemaId: string;
-        properties: { name: string; value: string }[];
-      }[];
+      properties: { name: string; value: string }[];
     }[]
   > {
     const reply = await this.nc.request(

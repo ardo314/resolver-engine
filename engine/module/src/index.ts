@@ -2,7 +2,6 @@ export {
   ComponentWorker,
   Implements,
   SerializeField,
-  getWorkerSchemas,
   getWorkerFields,
   getWorkerComponent,
   createWorkerAccessors,

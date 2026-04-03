@@ -24,11 +24,6 @@ export interface EntityEntry {
 
 export interface ComponentEntry {
   componentId: string;
-  schemas: SchemaEntry[];
-}
-
-export interface SchemaEntry {
-  schemaId: string;
   properties: PropertyEntry[];
 }
 

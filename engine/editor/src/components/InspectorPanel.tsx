@@ -19,19 +19,14 @@ export function InspectorPanel() {
               <summary className="component-header">
                 {comp.componentId}
               </summary>
-              {comp.schemas.map((schema) => (
-                <div key={schema.schemaId} className="schema-section">
-                  <div className="schema-header">{schema.schemaId}</div>
-                  <div className="property-list">
-                    {schema.properties.map((prop) => (
-                      <div key={prop.name} className="property-row">
-                        <span className="property-name">{prop.name}</span>
-                        <span className="property-value">{prop.value}</span>
-                      </div>
-                    ))}
+              <div className="property-list">
+                {comp.properties.map((prop) => (
+                  <div key={prop.name} className="property-row">
+                    <span className="property-name">{prop.name}</span>
+                    <span className="property-value">{prop.value}</span>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </details>
           ))}
         </div>

@@ -1,9 +1,9 @@
 import { type Pose, poseSchema } from "@ardo314/core";
-import { posePropertySchema } from "@ardo314/in-memory";
+import { poseComponent } from "@ardo314/in-memory";
 import { ComponentWorker, Implements, SerializeField } from "@engine/module";
 
-@Implements(posePropertySchema)
+@Implements(poseComponent)
 export class PoseWorker extends ComponentWorker {
   @SerializeField(poseSchema)
-  value: Pose = [0, 0, 0, 0, 0, 0];
+  pose: Pose = [0, 0, 0, 0, 0, 0];
 }
