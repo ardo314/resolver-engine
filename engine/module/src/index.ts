@@ -4,7 +4,6 @@ export {
   SerializeField,
   getWorkerFields,
   getWorkerComponent,
-  createWorkerAccessors,
 } from "./component-worker.js";
 export type {
   ComponentWorkerClass,

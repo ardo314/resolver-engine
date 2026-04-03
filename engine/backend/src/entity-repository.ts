@@ -4,10 +4,10 @@ export class EntityRepository {
   private readonly entities = new Set<EntityId>();
   private nextId = 0;
 
-  /** entityId → componentId → worker proxy instance */
-  private readonly components = new Map<EntityId, Map<ComponentId, unknown>>();
+  /** entityId → set of direct componentIds */
+  private readonly components = new Map<EntityId, Set<ComponentId>>();
 
-  /** entityId → compositeComponentId → composed componentId (for composite lookup) */
+  /** entityId → compositeComponentId → parent componentId (for composite lookup) */
   private readonly compositeIndex = new Map<
     EntityId,
     Map<ComponentId, ComponentId>
@@ -16,7 +16,7 @@ export class EntityRepository {
   create(): EntityId {
     const id = `${Date.now()}-${this.nextId++}` as EntityId;
     this.entities.add(id);
-    this.components.set(id, new Map());
+    this.components.set(id, new Set());
     this.compositeIndex.set(id, new Map());
     return id;
   }
@@ -39,7 +39,6 @@ export class EntityRepository {
     entityId: EntityId,
     componentId: ComponentId,
     compositeIds: ComponentId[],
-    workerInstance: unknown,
   ): void {
     const entityComponents = this.components.get(entityId);
     const entityComposites = this.compositeIndex.get(entityId);
@@ -72,7 +71,7 @@ export class EntityRepository {
         );
       }
     }
-    entityComponents.set(componentId, workerInstance);
+    entityComponents.add(componentId);
     for (const compositeId of compositeIds) {
       entityComposites.set(compositeId, componentId);
     }
@@ -99,23 +98,8 @@ export class EntityRepository {
     return this.compositeIndex.get(entityId)?.has(componentId) ?? false;
   }
 
-  getWorkerInstance(
-    entityId: EntityId,
-    componentId: ComponentId,
-  ): unknown | undefined {
-    // Direct component
-    const direct = this.components.get(entityId)?.get(componentId);
-    if (direct !== undefined) return direct;
-    // Composite → resolve to composed component's worker
-    const composedId = this.compositeIndex.get(entityId)?.get(componentId);
-    if (composedId) {
-      return this.components.get(entityId)?.get(composedId);
-    }
-    return undefined;
-  }
-
   getComponentIds(entityId: EntityId): ComponentId[] {
-    const map = this.components.get(entityId);
-    return map ? [...map.keys()] : [];
+    const set = this.components.get(entityId);
+    return set ? [...set] : [];
   }
 }

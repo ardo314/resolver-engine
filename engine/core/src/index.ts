@@ -16,4 +16,4 @@ export type {
   InferComponentMethod,
   InferComponentMethods,
 } from "./component.js";
-export { Subjects } from "./subjects.js";
+export { Subjects, WorkerSubjects } from "./subjects.js";

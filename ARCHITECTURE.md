@@ -7,9 +7,9 @@ Monorepo with engine packages under `engine/` and user modules under `modules/`:
 | Package                      | Path                        | Description                                          |
 | ---------------------------- | --------------------------- | ---------------------------------------------------- |
 | `@engine/core`               | `engine/core`               | Core types: entities, components                     |
-| `@engine/backend`            | `engine/backend`            | Server-side entity management                        |
+| `@engine/backend`            | `engine/backend`            | Server-side entity structure management              |
 | `@engine/client`             | `engine/client`             | Client-side API                                      |
-| `@engine/module`             | `engine/module`             | Module system (depends on client)                    |
+| `@engine/module`             | `engine/module`             | Module system: workers, decorators                   |
 | `@engine/editor`             | `engine/editor`             | Vite + React frontend                                |
 | `@ardo314/core`              | `modules/core`              | Core user Zod schemas (depends on core)              |
 | `@ardo314/in-memory`         | `modules/in-memory`         | User module: component definitions (depends on core) |
@@ -56,14 +56,18 @@ This allows code to query entities by capability without knowing the full compos
 
 ### Component Worker
 
-A `ComponentWorker` is a class that implements the runtime behaviour for a component. Workers are defined using two decorators:
+A `ComponentWorker` is a class that implements the runtime behaviour for a component. There is **one worker instance per component on an entity**. Workers are defined using two decorators:
 
 - **`@Implements(component)`** — Class decorator. Declares which component (defined via `defineComponent`) the worker implements. The single component carries its composites, so the worker implicitly covers everything.
 - **`@SerializeField(zodSchema)`** — Field decorator. Marks a class field as a serializable property backed by a Zod schema. The field name must match the corresponding component property name. The Zod schema is used for runtime validation on `set`.
 
-Workers extend the abstract `ComponentWorker` base class. The engine instantiates workers via `new WorkerClass()` when a component is added to an entity. The decorator metadata (via TC39 `Symbol.metadata`) is used to auto-generate async `get`/`set` accessors that bridge plain class fields to the accessor interface expected by the `EntityHandler`.
+Workers extend the abstract `ComponentWorker` base class. The decorator metadata (via TC39 `Symbol.metadata`) is used to auto-generate async `get`/`set` accessors that bridge plain class fields to the NATS subscription interface.
 
-Worker classes are registered with the `EntityHandler` on the backend at startup. A composed component is implemented by a single worker that covers all properties (own + composites).
+**Worker lifecycle:** Workers manage their own NATS subscriptions. When `start(nc, entityId)` is called, the worker subscribes to `WorkerSubjects.getProperty` and `WorkerSubjects.setProperty` for the component and all its composites. When `stop()` is called, it unsubscribes. Properties and methods are identified by their name, their component, and their entity.
+
+**Independence from backend:** Workers operate independently of the backend. The backend only tracks which entities have which components (structural data). It does not relay or control worker subscriptions, property messages, or method messages. Clients communicate with workers directly via `WorkerSubjects`.
+
+Worker classes are registered with the `EntityHandler` on the backend at startup. When a component is added, the backend records the structure and creates/starts the worker. When removed, it stops the worker and removes the structure. A composed component is implemented by a single worker that covers all properties (own + composites).
 
 > **Zod schemas vs component definitions:** Zod schemas (`z.string()`, `poseSchema`, etc.) describe data shapes for validation. Component definitions (`defineComponent(...)`) are first-class contracts with an ID, properties, methods, and composites. `@SerializeField` takes a Zod schema; `@Implements` takes a component.
 
@@ -73,24 +77,34 @@ Zod schemas serve as the single source of truth for both TypeScript types (via `
 
 ## Transport
 
-Client ↔ Backend communication uses [NATS](https://nats.io/) request/reply.
+Communication uses [NATS](https://nats.io/) request/reply with two subject namespaces:
 
-- **Subject conventions** are defined in `@engine/core` (`Subjects`).
-- **Client** (`World`, `Entity`) sends NATS requests via `NatsConnection.request()`.
-- **Backend** (`EntityHandler`) subscribes to subjects and delegates to `EntityRepository`.
+- **`Subjects`** — Backend subjects for structural operations (entity/component management). Handled by `EntityHandler`.
+- **`WorkerSubjects`** — Per-component per-entity subjects for property access. Handled directly by `ComponentWorker` instances.
 
-### NATS Subjects
+Both are defined in `@engine/core`.
 
-| Subject                         | Payload (request)                                   | Payload (reply)            |
-| ------------------------------- | --------------------------------------------------- | -------------------------- |
-| `engine.world.createEntity`     | _(empty)_                                           | `EntityId`                 |
-| `engine.world.deleteEntity`     | `EntityId`                                          | `"true"/"false"`           |
-| `engine.world.hasEntity`        | `EntityId`                                          | `"true"/"false"`           |
-| `engine.entity.addComponent`    | `{ entityId, componentId }` (JSON)                  | `{ ok }` or `{ error }`    |
-| `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON)                  | `"true"/"false"`           |
-| `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON)                  | `"true"/"false"`           |
-| `engine.entity.getProperty`     | `{ entityId, componentId, property }` (JSON)        | `{ value }` or `{ error }` |
-| `engine.entity.setProperty`     | `{ entityId, componentId, property, value }` (JSON) | `{ ok }` or `{ error }`    |
+### Backend Subjects (structural)
+
+| Subject                         | Payload (request)                  | Payload (reply)                          |
+| ------------------------------- | ---------------------------------- | ---------------------------------------- |
+| `engine.world.createEntity`     | _(empty)_                          | `EntityId`                               |
+| `engine.world.deleteEntity`     | `EntityId`                         | `"true"/"false"`                         |
+| `engine.world.hasEntity`        | `EntityId`                         | `"true"/"false"`                         |
+| `engine.world.listEntities`     | _(empty)_                          | `EntityId[]` (JSON)                      |
+| `engine.entity.addComponent`    | `{ entityId, componentId }` (JSON) | `{ ok }` or `{ error }`                 |
+| `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON) | `"true"/"false"`                         |
+| `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON) | `"true"/"false"`                         |
+| `engine.entity.getComponents`   | `EntityId`                         | `[{ componentId }]` (JSON, structure only) |
+
+### Worker Subjects (per-component per-entity)
+
+| Subject pattern                                        | Payload (request)            | Payload (reply)             |
+| ------------------------------------------------------ | ---------------------------- | --------------------------- |
+| `engine.worker.{componentId}.{entityId}.getProperty`   | `{ property }` (JSON)        | `{ value }` or `{ error }`  |
+| `engine.worker.{componentId}.{entityId}.setProperty`   | `{ property, value }` (JSON) | `{ ok }` or `{ error }`     |
+
+Workers subscribe to these subjects themselves on `start()` and unsubscribe on `stop()`.
 
 ## Build
 

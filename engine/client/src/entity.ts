@@ -1,7 +1,12 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type { ComponentReference, EntityId } from "@engine/core";
-import { Subjects, type Component, getAllProperties } from "@engine/core";
+import {
+  Subjects,
+  WorkerSubjects,
+  type Component,
+  getAllProperties,
+} from "@engine/core";
 
 const sc = StringCodec();
 
@@ -19,14 +24,11 @@ function createRemoteComponentReference<C extends Component>(
     proxy[key] = {
       async get() {
         const reply = await nc.request(
-          Subjects.getProperty,
-          sc.encode(
-            JSON.stringify({
-              entityId,
-              componentId: component.id,
-              property: key,
-            }),
+          WorkerSubjects.getProperty(
+            component.id as string,
+            entityId as string,
           ),
+          sc.encode(JSON.stringify({ property: key })),
         );
         const result = JSON.parse(sc.decode(reply.data)) as {
           value?: unknown;
@@ -37,15 +39,11 @@ function createRemoteComponentReference<C extends Component>(
       },
       async set(value: unknown) {
         const reply = await nc.request(
-          Subjects.setProperty,
-          sc.encode(
-            JSON.stringify({
-              entityId,
-              componentId: component.id,
-              property: key,
-              value,
-            }),
+          WorkerSubjects.setProperty(
+            component.id as string,
+            entityId as string,
           ),
+          sc.encode(JSON.stringify({ property: key, value })),
         );
         const result = JSON.parse(sc.decode(reply.data)) as {
           ok?: boolean;
@@ -74,14 +72,11 @@ function createScopedComponentReference<C extends Component>(
       proxy[key] = {
         async get() {
           const reply = await nc.request(
-            Subjects.getProperty,
-            sc.encode(
-              JSON.stringify({
-                entityId,
-                componentId: component.id,
-                property: key,
-              }),
+            WorkerSubjects.getProperty(
+              component.id as string,
+              entityId as string,
             ),
+            sc.encode(JSON.stringify({ property: key })),
           );
           const result = JSON.parse(sc.decode(reply.data)) as {
             value?: unknown;
@@ -92,15 +87,11 @@ function createScopedComponentReference<C extends Component>(
         },
         async set(value: unknown) {
           const reply = await nc.request(
-            Subjects.setProperty,
-            sc.encode(
-              JSON.stringify({
-                entityId,
-                componentId: component.id,
-                property: key,
-                value,
-              }),
+            WorkerSubjects.setProperty(
+              component.id as string,
+              entityId as string,
             ),
+            sc.encode(JSON.stringify({ property: key, value })),
           );
           const result = JSON.parse(sc.decode(reply.data)) as {
             ok?: boolean;
@@ -174,6 +165,18 @@ export class Entity {
       Subjects.getComponents,
       sc.encode(this.id),
     );
-    return JSON.parse(sc.decode(reply.data));
+    const structural = JSON.parse(sc.decode(reply.data)) as {
+      componentId: string;
+    }[];
+
+    const result: {
+      componentId: string;
+      properties: { name: string; value: string }[];
+    }[] = [];
+
+    for (const { componentId } of structural) {
+      result.push({ componentId, properties: [] });
+    }
+    return result;
   }
 }

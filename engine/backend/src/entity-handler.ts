@@ -1,9 +1,9 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type { EntityId, ComponentId } from "@engine/core";
-import { Subjects, getAllComposites, getAllProperties } from "@engine/core";
-import type { ComponentWorkerClass } from "@engine/module";
-import { getWorkerComponent, createWorkerAccessors } from "@engine/module";
+import { Subjects, getAllComposites } from "@engine/core";
+import type { ComponentWorkerClass, ComponentWorker } from "@engine/module";
+import { getWorkerComponent } from "@engine/module";
 import { EntityRepository } from "./entity-repository.js";
 
 const sc = StringCodec();
@@ -11,23 +11,22 @@ const sc = StringCodec();
 interface RegisteredWorker {
   readonly workerClass: ComponentWorkerClass;
   readonly compositeIds: ComponentId[];
-  readonly propertyNames: string[];
 }
 
 export class EntityHandler {
   private readonly repo = new EntityRepository();
   private readonly workers = new Map<string, RegisteredWorker>();
+  /** Live worker instances, keyed by "entityId:componentId" */
+  private readonly activeWorkers = new Map<string, ComponentWorker>();
 
   constructor(private readonly nc: NatsConnection) {}
 
   registerWorker(workerClass: ComponentWorkerClass): void {
     const component = getWorkerComponent(workerClass);
     const composites = getAllComposites(component);
-    const properties = getAllProperties(component);
     this.workers.set(component.id as string, {
       workerClass,
       compositeIds: composites.map((c) => c.id),
-      propertyNames: Object.keys(properties),
     });
   }
 
@@ -40,8 +39,6 @@ export class EntityHandler {
     this.handleRemoveComponent();
     this.handleHasComponent();
     this.handleGetComponents();
-    this.handleGetProperty();
-    this.handleSetProperty();
   }
 
   private handleCreateEntity(): void {
@@ -59,6 +56,16 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         const id = sc.decode(msg.data) as EntityId;
+        // Stop all workers for this entity
+        const componentIds = this.repo.getComponentIds(id);
+        for (const componentId of componentIds) {
+          const key = `${id as string}:${componentId as string}`;
+          const worker = this.activeWorkers.get(key);
+          if (worker) {
+            worker.stop();
+            this.activeWorkers.delete(key);
+          }
+        }
         const result = this.repo.delete(id);
         msg.respond(sc.encode(String(result)));
       }
@@ -91,12 +98,14 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { entityId, componentId } = JSON.parse(sc.decode(msg.data)) as {
+          const { entityId, componentId } = JSON.parse(
+            sc.decode(msg.data),
+          ) as {
             entityId: EntityId;
             componentId: ComponentId;
           };
-          const worker = this.workers.get(componentId as string);
-          if (!worker) {
+          const registered = this.workers.get(componentId as string);
+          if (!registered) {
             msg.respond(
               sc.encode(
                 JSON.stringify({
@@ -106,13 +115,22 @@ export class EntityHandler {
             );
             continue;
           }
-          const { accessors } = createWorkerAccessors(worker.workerClass);
+
+          // Record structure
           this.repo.addComponent(
             entityId,
             componentId,
-            worker.compositeIds,
-            accessors,
+            registered.compositeIds,
           );
+
+          // Create and start worker — it subscribes to its own topics
+          const worker = new registered.workerClass();
+          worker.start(this.nc, entityId);
+          this.activeWorkers.set(
+            `${entityId as string}:${componentId as string}`,
+            worker,
+          );
+
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -127,17 +145,28 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { entityId, componentId } = JSON.parse(sc.decode(msg.data)) as {
+          const { entityId, componentId } = JSON.parse(
+            sc.decode(msg.data),
+          ) as {
             entityId: EntityId;
             componentId: ComponentId;
           };
-          const worker = this.workers.get(componentId as string);
-          const compositeIds = worker ? worker.compositeIds : [];
+          const registered = this.workers.get(componentId as string);
+          const compositeIds = registered ? registered.compositeIds : [];
           const result = this.repo.removeComponent(
             entityId,
             componentId,
             compositeIds,
           );
+
+          // Stop worker — it unsubscribes from its own topics
+          const key = `${entityId as string}:${componentId as string}`;
+          const worker = this.activeWorkers.get(key);
+          if (worker) {
+            worker.stop();
+            this.activeWorkers.delete(key);
+          }
+
           msg.respond(sc.encode(String(result)));
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -151,7 +180,9 @@ export class EntityHandler {
     const sub = this.nc.subscribe(Subjects.hasComponent);
     (async () => {
       for await (const msg of sub) {
-        const { entityId, componentId } = JSON.parse(sc.decode(msg.data)) as {
+        const { entityId, componentId } = JSON.parse(
+          sc.decode(msg.data),
+        ) as {
           entityId: EntityId;
           componentId: ComponentId;
         };
@@ -168,97 +199,13 @@ export class EntityHandler {
         try {
           const entityId = sc.decode(msg.data) as EntityId;
           const componentIds = this.repo.getComponentIds(entityId);
-          const components = [];
-          for (const componentId of componentIds) {
-            const worker = this.workers.get(componentId as string);
-            const propertyNames = worker ? worker.propertyNames : [];
-            const instance = this.repo.getWorkerInstance(
-              entityId,
-              componentId,
-            ) as Record<string, { get(): Promise<unknown> }> | undefined;
-            const properties = [];
-            for (const name of propertyNames) {
-              let value: unknown = null;
-              if (instance?.[name]) {
-                value = await instance[name].get();
-              }
-              properties.push({ name, value: JSON.stringify(value) });
-            }
-            components.push({
-              componentId: componentId as string,
-              properties,
-            });
-          }
-          msg.respond(sc.encode(JSON.stringify(components)));
-        } catch (e) {
-          const message = e instanceof Error ? e.message : String(e);
-          msg.respond(sc.encode(JSON.stringify({ error: message })));
-        }
-      }
-    })();
-  }
-
-  private handleGetProperty(): void {
-    const sub = this.nc.subscribe(Subjects.getProperty);
-    (async () => {
-      for await (const msg of sub) {
-        try {
-          const { entityId, componentId, property } = JSON.parse(
-            sc.decode(msg.data),
-          ) as {
-            entityId: EntityId;
-            componentId: ComponentId;
-            property: string;
-          };
-          const instance = this.repo.getWorkerInstance(
-            entityId,
-            componentId,
-          ) as Record<string, { get(): Promise<unknown> }> | undefined;
-          if (!instance || !instance[property]) {
-            msg.respond(
-              sc.encode(
-                JSON.stringify({ error: `Property ${property} not found` }),
+          msg.respond(
+            sc.encode(
+              JSON.stringify(
+                componentIds.map((id) => ({ componentId: id as string })),
               ),
-            );
-            continue;
-          }
-          const value = await instance[property].get();
-          msg.respond(sc.encode(JSON.stringify({ value })));
-        } catch (e) {
-          const message = e instanceof Error ? e.message : String(e);
-          msg.respond(sc.encode(JSON.stringify({ error: message })));
-        }
-      }
-    })();
-  }
-
-  private handleSetProperty(): void {
-    const sub = this.nc.subscribe(Subjects.setProperty);
-    (async () => {
-      for await (const msg of sub) {
-        try {
-          const { entityId, componentId, property, value } = JSON.parse(
-            sc.decode(msg.data),
-          ) as {
-            entityId: EntityId;
-            componentId: ComponentId;
-            property: string;
-            value: unknown;
-          };
-          const instance = this.repo.getWorkerInstance(
-            entityId,
-            componentId,
-          ) as Record<string, { set(v: unknown): Promise<void> }> | undefined;
-          if (!instance || !instance[property]) {
-            msg.respond(
-              sc.encode(
-                JSON.stringify({ error: `Property ${property} not found` }),
-              ),
-            );
-            continue;
-          }
-          await instance[property].set(value);
-          msg.respond(sc.encode(JSON.stringify({ ok: true })));
+            ),
+          );
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           msg.respond(sc.encode(JSON.stringify({ error: message })));

@@ -7,6 +7,11 @@ export const Subjects = {
   removeComponent: "engine.entity.removeComponent",
   hasComponent: "engine.entity.hasComponent",
   getComponents: "engine.entity.getComponents",
-  getProperty: "engine.entity.getProperty",
-  setProperty: "engine.entity.setProperty",
+} as const;
+
+export const WorkerSubjects = {
+  getProperty: (componentId: string, entityId: string) =>
+    `engine.worker.${componentId}.${entityId}.getProperty`,
+  setProperty: (componentId: string, entityId: string) =>
+    `engine.worker.${componentId}.${entityId}.setProperty`,
 } as const;
