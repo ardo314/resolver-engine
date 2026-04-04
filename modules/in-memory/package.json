@@ -11,7 +11,6 @@
     "clean": "tsc --build --clean"
   },
   "dependencies": {
-    "@ardo314/core": "0.0.1",
-    "@engine/core": "0.0.1"
+    "@ardo314/core": "0.0.1"
   }
 }
