@@ -1,4 +1,4 @@
 export type ComponentProperty<T> = {
-  get(): Promise<T>;
-  set(value: T): Promise<void>;
+  get(): T | Promise<T>;
+  set(value: T): void | Promise<void>;
 };

@@ -21,6 +21,11 @@ const sc = StringCodec();
 
 // --- Types ---
 
+interface PropertyAccessor {
+  get(): unknown | Promise<unknown>;
+  set(value: unknown): void | Promise<void>;
+}
+
 export type ComponentWorkerClass = new () => ComponentWorker;
 
 // --- Base class ---
@@ -74,14 +79,20 @@ export abstract class ComponentWorker {
     entityId: string,
     property: string,
   ): void {
+    const instance = this as unknown as Record<string, PropertyAccessor>;
+    const accessor = instance[property];
+    if (!accessor || typeof accessor.get !== "function") {
+      throw new Error(
+        `Worker ${this.constructor.name} does not implement get for property "${property}"`,
+      );
+    }
     const sub = nc.subscribe(
       WorkerSubjects.getProperty(componentId, entityId, property),
     );
-    const instance = this as unknown as Record<string, unknown>;
     (async () => {
       for await (const msg of sub) {
         try {
-          const value = instance[property];
+          const value = await accessor.get();
           msg.respond(sc.encode(JSON.stringify({ value })));
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -99,17 +110,23 @@ export abstract class ComponentWorker {
     property: string,
     schema: z.ZodType,
   ): void {
+    const instance = this as unknown as Record<string, PropertyAccessor>;
+    const accessor = instance[property];
+    if (!accessor || typeof accessor.set !== "function") {
+      throw new Error(
+        `Worker ${this.constructor.name} does not implement set for property "${property}"`,
+      );
+    }
     const sub = nc.subscribe(
       WorkerSubjects.setProperty(componentId, entityId, property),
     );
-    const instance = this as unknown as Record<string, unknown>;
     (async () => {
       for await (const msg of sub) {
         try {
           const { value } = JSON.parse(sc.decode(msg.data)) as {
             value: unknown;
           };
-          instance[property] = schema.parse(value);
+          await accessor.set(schema.parse(value));
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);

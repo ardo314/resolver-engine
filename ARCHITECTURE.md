@@ -60,9 +60,9 @@ A `ComponentWorker` is a class that implements the runtime behaviour for a compo
 
 - **`@Implements(component)`** — Class decorator. Declares which component (defined via `defineComponent`) the worker implements. The single component carries its composites, so the worker implicitly covers everything.
 
-The component definition is the single source of truth for which properties and methods a worker exposes. The worker class simply provides matching fields (for properties) and methods (for methods). Property schemas and method signatures come from the component's `defineComponent(...)` call — workers do not redeclare them.
+The component definition is the single source of truth for which properties and methods a worker exposes. For each component property, the worker class provides a matching field implementing the `ComponentProperty<T>` interface — an object with `get()` and `set(value)` methods (sync or async). For each component method, the worker provides a matching instance method. Property schemas and method signatures come from the component's `defineComponent(...)` call — workers do not redeclare them.
 
-Workers extend the abstract `ComponentWorker` base class. At `start()` time, the base class reads `getAllProperties(component)` and `getAllMethods(component)` from the component definition to create per-property and per-method NATS subscriptions automatically.
+Workers extend the abstract `ComponentWorker` base class. At `start()` time, the base class reads `getAllProperties(component)` and `getAllMethods(component)` from the component definition to create per-property and per-method NATS subscriptions automatically. If a worker does not implement the required `get`/`set` accessor for a property, or a required method, `start()` throws immediately (fail-fast).
 
 **Worker lifecycle:** Workers manage their own NATS subscriptions. When `start(nc, entityId)` is called, the worker subscribes to per-property `get`/`set` subjects and per-method subjects for the component and all its composites. When `stop()` is called, it unsubscribes. Each property and method is identified by its name, its component, and its entity.
 
