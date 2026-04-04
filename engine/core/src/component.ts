@@ -123,6 +123,27 @@ export function getAllProperties(
   return result;
 }
 
+/** Recursively collect all method names and their definitions (own + composites). */
+export function getAllMethods(
+  component: Component,
+): Record<string, ComponentMethodDefinition> {
+  const result: Record<string, ComponentMethodDefinition> = {};
+  const visited = new Set<string>();
+  function walk(comp: Component) {
+    if (comp.definition.methods) {
+      Object.assign(result, comp.definition.methods);
+    }
+    for (const composite of comp.definition.composites ?? []) {
+      const cid = composite.id as string;
+      if (visited.has(cid)) continue;
+      visited.add(cid);
+      walk(composite);
+    }
+  }
+  walk(component);
+  return result;
+}
+
 // --- Type inference ---
 
 export type InferComponentProperties<

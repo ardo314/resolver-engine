@@ -10,8 +10,10 @@ export const Subjects = {
 } as const;
 
 export const WorkerSubjects = {
-  getProperty: (componentId: string, entityId: string) =>
-    `engine.worker.${componentId}.${entityId}.getProperty`,
-  setProperty: (componentId: string, entityId: string) =>
-    `engine.worker.${componentId}.${entityId}.setProperty`,
+  getProperty: (componentId: string, entityId: string, property: string) =>
+    `engine.worker.${componentId}.${entityId}.property.${property}.get`,
+  setProperty: (componentId: string, entityId: string, property: string) =>
+    `engine.worker.${componentId}.${entityId}.property.${property}.set`,
+  callMethod: (componentId: string, entityId: string, method: string) =>
+    `engine.worker.${componentId}.${entityId}.method.${method}`,
 } as const;

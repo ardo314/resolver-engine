@@ -1,22 +1,25 @@
 import type { z } from "zod";
 import type { NatsConnection, Subscription } from "nats";
 import { StringCodec } from "nats";
-import type { Component, EntityId } from "@engine/core";
-import { WorkerSubjects, getAllComposites } from "@engine/core";
+import type {
+  Component,
+  ComponentMethodDefinition,
+  EntityId,
+} from "@engine/core";
+import {
+  WorkerSubjects,
+  getAllComposites,
+  getAllProperties,
+  getAllMethods,
+} from "@engine/core";
 
 // --- Metadata keys ---
 
 const COMPONENT_KEY = "__worker_component__";
-const FIELDS_KEY = "__worker_fields__";
 
 const sc = StringCodec();
 
 // --- Types ---
-
-export interface SerializedFieldInfo {
-  readonly name: string;
-  readonly schema: z.ZodType;
-}
 
 export type ComponentWorkerClass = new () => ComponentWorker;
 
@@ -26,24 +29,36 @@ export abstract class ComponentWorker {
   private subscriptions: Subscription[] = [];
 
   /**
-   * Start the worker for a given entity. Subscribes to property get/set
-   * subjects for the component and all its composites.
+   * Start the worker for a given entity. Subscribes to per-property get/set
+   * and per-method subjects for the component and all its composites.
    */
   start(nc: NatsConnection, entityId: EntityId): void {
     const workerClass = this.constructor as ComponentWorkerClass;
     const component = getWorkerComponent(workerClass);
-    const fields = getWorkerFields(workerClass);
     const composites = getAllComposites(component);
 
-    const accessors = buildAccessors(this, fields);
+    const allProperties = getAllProperties(component);
+    const allMethods = getAllMethods(component);
+
     const targetIds = [
       component.id as string,
       ...composites.map((c) => c.id as string),
     ];
 
     for (const targetId of targetIds) {
-      this.subscribeGetProperty(nc, targetId, entityId as string, accessors);
-      this.subscribeSetProperty(nc, targetId, entityId as string, accessors);
+      for (const [name, schema] of Object.entries(allProperties)) {
+        this.subscribeGetProperty(nc, targetId, entityId as string, name);
+        this.subscribeSetProperty(
+          nc,
+          targetId,
+          entityId as string,
+          name,
+          schema,
+        );
+      }
+      for (const [name, def] of Object.entries(allMethods)) {
+        this.subscribeMethod(nc, targetId, entityId as string, name, def);
+      }
     }
   }
 
@@ -57,27 +72,16 @@ export abstract class ComponentWorker {
     nc: NatsConnection,
     componentId: string,
     entityId: string,
-    accessors: Record<
-      string,
-      { get(): Promise<unknown>; set(value: unknown): Promise<void> }
-    >,
+    property: string,
   ): void {
-    const sub = nc.subscribe(WorkerSubjects.getProperty(componentId, entityId));
+    const sub = nc.subscribe(
+      WorkerSubjects.getProperty(componentId, entityId, property),
+    );
+    const instance = this as unknown as Record<string, unknown>;
     (async () => {
       for await (const msg of sub) {
         try {
-          const { property } = JSON.parse(sc.decode(msg.data)) as {
-            property: string;
-          };
-          if (!accessors[property]) {
-            msg.respond(
-              sc.encode(
-                JSON.stringify({ error: `Property ${property} not found` }),
-              ),
-            );
-            continue;
-          }
-          const value = await accessors[property].get();
+          const value = instance[property];
           msg.respond(sc.encode(JSON.stringify({ value })));
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -92,29 +96,61 @@ export abstract class ComponentWorker {
     nc: NatsConnection,
     componentId: string,
     entityId: string,
-    accessors: Record<
-      string,
-      { get(): Promise<unknown>; set(value: unknown): Promise<void> }
-    >,
+    property: string,
+    schema: z.ZodType,
   ): void {
-    const sub = nc.subscribe(WorkerSubjects.setProperty(componentId, entityId));
+    const sub = nc.subscribe(
+      WorkerSubjects.setProperty(componentId, entityId, property),
+    );
+    const instance = this as unknown as Record<string, unknown>;
     (async () => {
       for await (const msg of sub) {
         try {
-          const { property, value } = JSON.parse(sc.decode(msg.data)) as {
-            property: string;
+          const { value } = JSON.parse(sc.decode(msg.data)) as {
             value: unknown;
           };
-          if (!accessors[property]) {
-            msg.respond(
-              sc.encode(
-                JSON.stringify({ error: `Property ${property} not found` }),
-              ),
-            );
-            continue;
-          }
-          await accessors[property].set(value);
+          instance[property] = schema.parse(value);
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          msg.respond(sc.encode(JSON.stringify({ error: message })));
+        }
+      }
+    })();
+    this.subscriptions.push(sub);
+  }
+
+  private subscribeMethod(
+    nc: NatsConnection,
+    componentId: string,
+    entityId: string,
+    method: string,
+    def: ComponentMethodDefinition,
+  ): void {
+    const instance = this as unknown as Record<string, unknown>;
+    const fn = instance[method];
+    if (typeof fn !== "function") {
+      throw new Error(
+        `Worker ${this.constructor.name} does not implement method "${method}"`,
+      );
+    }
+
+    const sub = nc.subscribe(
+      WorkerSubjects.callMethod(componentId, entityId, method),
+    );
+    (async () => {
+      for await (const msg of sub) {
+        try {
+          let input: unknown;
+          if (def.input) {
+            const payload = JSON.parse(sc.decode(msg.data)) as {
+              input: unknown;
+            };
+            input = def.input.parse(payload.input);
+          }
+          const raw = await (fn as Function).call(instance, input);
+          const result = def.output ? def.output.parse(raw) : undefined;
+          msg.respond(sc.encode(JSON.stringify({ result })));
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           msg.respond(sc.encode(JSON.stringify({ error: message })));
@@ -136,22 +172,7 @@ export function Implements(component: Component) {
   };
 }
 
-export function SerializeField(schema: z.ZodType) {
-  return function (_target: undefined, context: ClassFieldDecoratorContext) {
-    const fields = (context.metadata[FIELDS_KEY] ??=
-      []) as SerializedFieldInfo[];
-    fields.push({ name: context.name as string, schema });
-  };
-}
-
 // --- Metadata access ---
-
-export function getWorkerFields(
-  workerClass: ComponentWorkerClass,
-): readonly SerializedFieldInfo[] {
-  const metadata = workerClass[Symbol.metadata];
-  return (metadata?.[FIELDS_KEY] as SerializedFieldInfo[] | undefined) ?? [];
-}
 
 export function getWorkerComponent(
   workerClass: ComponentWorkerClass,
@@ -162,32 +183,4 @@ export function getWorkerComponent(
     throw new Error(`Worker ${workerClass.name} has no @Implements decorator`);
   }
   return component;
-}
-
-// --- Accessor helpers ---
-
-function buildAccessors(
-  instance: ComponentWorker,
-  fields: readonly SerializedFieldInfo[],
-): Record<
-  string,
-  { get(): Promise<unknown>; set(value: unknown): Promise<void> }
-> {
-  const accessors: Record<
-    string,
-    { get(): Promise<unknown>; set(value: unknown): Promise<void> }
-  > = {};
-  for (const field of fields) {
-    const key = field.name;
-    accessors[key] = {
-      async get() {
-        return (instance as unknown as Record<string, unknown>)[key];
-      },
-      async set(value: unknown) {
-        (instance as unknown as Record<string, unknown>)[key] =
-          field.schema.parse(value);
-      },
-    };
-  }
-  return accessors;
 }

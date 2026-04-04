@@ -6,6 +6,7 @@ import {
   WorkerSubjects,
   type Component,
   getAllProperties,
+  getAllMethods,
 } from "@engine/core";
 
 const sc = StringCodec();
@@ -15,10 +16,7 @@ function createRemoteComponentReference<C extends Component>(
   entityId: EntityId,
   component: C,
 ): ComponentReference<C> {
-  const proxy: Record<
-    string,
-    { get(): Promise<unknown>; set(v: unknown): Promise<void> }
-  > = {};
+  const proxy: Record<string, unknown> = {};
   const allProps = getAllProperties(component);
   for (const key of Object.keys(allProps)) {
     proxy[key] = {
@@ -27,8 +25,8 @@ function createRemoteComponentReference<C extends Component>(
           WorkerSubjects.getProperty(
             component.id as string,
             entityId as string,
+            key,
           ),
-          sc.encode(JSON.stringify({ property: key })),
         );
         const result = JSON.parse(sc.decode(reply.data)) as {
           value?: unknown;
@@ -42,8 +40,9 @@ function createRemoteComponentReference<C extends Component>(
           WorkerSubjects.setProperty(
             component.id as string,
             entityId as string,
+            key,
           ),
-          sc.encode(JSON.stringify({ property: key, value })),
+          sc.encode(JSON.stringify({ value })),
         );
         const result = JSON.parse(sc.decode(reply.data)) as {
           ok?: boolean;
@@ -51,6 +50,25 @@ function createRemoteComponentReference<C extends Component>(
         };
         if (result.error) throw new Error(result.error);
       },
+    };
+  }
+  const allMethodDefs = getAllMethods(component);
+  for (const name of Object.keys(allMethodDefs)) {
+    proxy[name] = async (input?: unknown) => {
+      const reply = await nc.request(
+        WorkerSubjects.callMethod(
+          component.id as string,
+          entityId as string,
+          name,
+        ),
+        input !== undefined ? sc.encode(JSON.stringify({ input })) : undefined,
+      );
+      const result = JSON.parse(sc.decode(reply.data)) as {
+        result?: unknown;
+        error?: string;
+      };
+      if (result.error) throw new Error(result.error);
+      return result.result;
     };
   }
   return proxy as ComponentReference<C>;
@@ -62,10 +80,7 @@ function createScopedComponentReference<C extends Component>(
   component: C,
   scopedComponent: Component,
 ): ComponentReference<C> {
-  const proxy: Record<
-    string,
-    { get(): Promise<unknown>; set(v: unknown): Promise<void> }
-  > = {};
+  const proxy: Record<string, unknown> = {};
   const ownProps = scopedComponent.definition.properties;
   if (ownProps) {
     for (const key of Object.keys(ownProps)) {
@@ -75,8 +90,8 @@ function createScopedComponentReference<C extends Component>(
             WorkerSubjects.getProperty(
               component.id as string,
               entityId as string,
+              key,
             ),
-            sc.encode(JSON.stringify({ property: key })),
           );
           const result = JSON.parse(sc.decode(reply.data)) as {
             value?: unknown;
@@ -90,8 +105,9 @@ function createScopedComponentReference<C extends Component>(
             WorkerSubjects.setProperty(
               component.id as string,
               entityId as string,
+              key,
             ),
-            sc.encode(JSON.stringify({ property: key, value })),
+            sc.encode(JSON.stringify({ value })),
           );
           const result = JSON.parse(sc.decode(reply.data)) as {
             ok?: boolean;
@@ -99,6 +115,29 @@ function createScopedComponentReference<C extends Component>(
           };
           if (result.error) throw new Error(result.error);
         },
+      };
+    }
+  }
+  const ownMethods = scopedComponent.definition.methods;
+  if (ownMethods) {
+    for (const name of Object.keys(ownMethods)) {
+      proxy[name] = async (input?: unknown) => {
+        const reply = await nc.request(
+          WorkerSubjects.callMethod(
+            component.id as string,
+            entityId as string,
+            name,
+          ),
+          input !== undefined
+            ? sc.encode(JSON.stringify({ input }))
+            : undefined,
+        );
+        const result = JSON.parse(sc.decode(reply.data)) as {
+          result?: unknown;
+          error?: string;
+        };
+        if (result.error) throw new Error(result.error);
+        return result.result;
       };
     }
   }

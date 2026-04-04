@@ -4,6 +4,7 @@ export {
   isComponent,
   getAllComposites,
   getAllProperties,
+  getAllMethods,
 } from "./component.js";
 export type {
   Component,
