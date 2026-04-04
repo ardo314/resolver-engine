@@ -6,8 +6,6 @@
   "extends": "../../tsconfig.json",
   "include": ["src"],
   "references": [
-    { "path": "../core" },
-    { "path": "../module" },
-    { "path": "../../modules/in-memory-workers" }
+    { "path": "../core" }
   ]
 }

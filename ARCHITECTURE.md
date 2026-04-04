@@ -9,7 +9,7 @@ Monorepo with engine packages under `engine/` and user modules under `modules/`:
 | `@engine/core`               | `engine/core`               | Core types: entities, components                     |
 | `@engine/backend`            | `engine/backend`            | Server-side entity structure management              |
 | `@engine/client`             | `engine/client`             | Client-side API                                      |
-| `@engine/module`             | `engine/module`             | Module system: workers, decorators                   |
+| `@engine/module`             | `engine/module`             | Module system: workers, decorators, WorkerHost       |
 | `@engine/editor`             | `engine/editor`             | Vite + React frontend                                |
 | `@ardo314/core`              | `modules/core`              | Core user Zod schemas (depends on core)              |
 | `@ardo314/in-memory`         | `modules/in-memory`         | User module: component definitions (depends on core) |
@@ -64,11 +64,13 @@ The component definition is the single source of truth for which properties and 
 
 Workers extend the abstract `ComponentWorker` base class. At `start()` time, the base class reads `getAllProperties(component)` and `getAllMethods(component)` from the component definition to create per-property and per-method NATS subscriptions automatically. If a worker does not implement the required `get`/`set` accessor for a property, or a required method, `start()` throws immediately (fail-fast).
 
-**Worker lifecycle:** Workers manage their own NATS subscriptions. When `start(nc, entityId)` is called, the worker subscribes to per-property `get`/`set` subjects and per-method subjects for the component and all its composites. When `stop()` is called, it unsubscribes. Each property and method is identified by its name, its component, and its entity.
+**Worker lifecycle:** Workers run in separate containers (e.g. in Kubernetes), not inside the backend. Each worker module runs in its own container using a `WorkerHost`. On startup, the `WorkerHost` registers its components with the backend via `Subjects.registerComponent` (request/reply). It then subscribes to `Subjects.startWorker` and `Subjects.stopWorker` (fire-and-forget publishes from the backend). When `startWorker` arrives with a matching `componentId`, the host instantiates the worker and calls `start(nc, entityId)`. When `stopWorker` arrives, it calls `stop()` and removes the instance.
 
-**Independence from backend:** Workers operate independently of the backend. The backend only tracks which entities have which components (structural data). It does not relay or control worker subscriptions, property messages, or method messages. Clients communicate with workers directly via `WorkerSubjects`.
+Within a single worker instance, `start()` subscribes to per-property `get`/`set` subjects and per-method subjects for the component and all its composites. `stop()` unsubscribes. Each property and method is identified by its name, its component, and its entity.
 
-Worker classes are registered with the `EntityHandler` on the backend at startup. When a component is added, the backend records the structure and creates/starts the worker. When removed, it stops the worker and removes the structure. A composed component is implemented by a single worker that covers all properties (own + composites).
+**Independence from backend:** Workers operate independently of the backend. The backend only tracks which entities have which components (structural data) and publishes lifecycle events. It does not relay or control worker subscriptions, property messages, or method messages. Clients communicate with workers directly via `WorkerSubjects`.
+
+Worker classes are registered with the `WorkerHost` at container startup. When the backend adds a component, it records the structure, publishes a `startWorker` event, and the appropriate worker container handles it. When removed or when an entity is deleted, the backend publishes `stopWorker` events. A composed component is implemented by a single worker that covers all properties (own + composites).
 
 ## Serialization
 
@@ -76,10 +78,10 @@ Zod schemas serve as the single source of truth for both TypeScript types (via `
 
 ## Transport
 
-Communication uses [NATS](https://nats.io/) request/reply with two subject namespaces:
+Communication uses [NATS](https://nats.io/) request/reply and publish/subscribe with three subject namespaces:
 
-- **`Subjects`** — Backend subjects for structural operations (entity/component management). Handled by `EntityHandler`.
-- **`WorkerSubjects`** — Per-component per-entity subjects for property access. Handled directly by `ComponentWorker` instances.
+- **`Subjects`** — Backend subjects for structural operations (entity/component management) and worker lifecycle events. Handled by `EntityHandler`.
+- **`WorkerSubjects`** — Per-component per-entity subjects for property access and method calls. Handled directly by `ComponentWorker` instances.
 
 Both are defined in `@engine/core`.
 
@@ -95,6 +97,14 @@ Both are defined in `@engine/core`.
 | `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON) | `"true"/"false"`                           |
 | `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON) | `"true"/"false"`                           |
 | `engine.entity.getComponents`   | `EntityId`                         | `[{ componentId }]` (JSON, structure only) |
+
+### Lifecycle Subjects
+
+| Subject                     | Type          | Payload                                    | Description                            |
+| --------------------------- | ------------- | ------------------------------------------ | -------------------------------------- |
+| `engine.component.register` | Request/reply | `{ componentId, compositeIds }` → `{ ok }` | Worker container registers a component |
+| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)         | Backend signals a worker should start  |
+| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)         | Backend signals a worker should stop   |
 
 ### Worker Subjects (per-component per-entity)
 

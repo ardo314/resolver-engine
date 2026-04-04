@@ -7,6 +7,9 @@ export const Subjects = {
   removeComponent: "engine.entity.removeComponent",
   hasComponent: "engine.entity.hasComponent",
   getComponents: "engine.entity.getComponents",
+  registerComponent: "engine.component.register",
+  startWorker: "engine.worker.start",
+  stopWorker: "engine.worker.stop",
 } as const;
 
 export const WorkerSubjects = {

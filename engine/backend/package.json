@@ -13,8 +13,6 @@
     "clean": "tsc --build --clean"
   },
   "dependencies": {
-    "@engine/core": "0.0.1",
-    "@engine/module": "0.0.1",
-    "@ardo314/in-memory-workers": "0.0.1"
+    "@engine/core": "0.0.1"
   }
 }

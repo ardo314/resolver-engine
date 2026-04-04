@@ -1,36 +1,23 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type { EntityId, ComponentId } from "@engine/core";
-import { Subjects, getAllComposites } from "@engine/core";
-import type { ComponentWorkerClass, ComponentWorker } from "@engine/module";
-import { getWorkerComponent } from "@engine/module";
+import { Subjects } from "@engine/core";
 import { EntityRepository } from "./entity-repository.js";
 
 const sc = StringCodec();
 
-interface RegisteredWorker {
-  readonly workerClass: ComponentWorkerClass;
+interface RegisteredComponent {
   readonly compositeIds: ComponentId[];
 }
 
 export class EntityHandler {
   private readonly repo = new EntityRepository();
-  private readonly workers = new Map<string, RegisteredWorker>();
-  /** Live worker instances, keyed by "entityId:componentId" */
-  private readonly activeWorkers = new Map<string, ComponentWorker>();
+  private readonly components = new Map<string, RegisteredComponent>();
 
   constructor(private readonly nc: NatsConnection) {}
 
-  registerWorker(workerClass: ComponentWorkerClass): void {
-    const component = getWorkerComponent(workerClass);
-    const composites = getAllComposites(component);
-    this.workers.set(component.id as string, {
-      workerClass,
-      compositeIds: composites.map((c) => c.id),
-    });
-  }
-
   async listen(): Promise<void> {
+    this.handleRegisterComponent();
     this.handleCreateEntity();
     this.handleDeleteEntity();
     this.handleHasEntity();
@@ -39,6 +26,29 @@ export class EntityHandler {
     this.handleRemoveComponent();
     this.handleHasComponent();
     this.handleGetComponents();
+  }
+
+  private handleRegisterComponent(): void {
+    const sub = this.nc.subscribe(Subjects.registerComponent);
+    (async () => {
+      for await (const msg of sub) {
+        try {
+          const { componentId, compositeIds } = JSON.parse(
+            sc.decode(msg.data),
+          ) as {
+            componentId: string;
+            compositeIds: string[];
+          };
+          this.components.set(componentId, {
+            compositeIds: compositeIds as ComponentId[],
+          });
+          msg.respond(sc.encode(JSON.stringify({ ok: true })));
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          msg.respond(sc.encode(JSON.stringify({ error: message })));
+        }
+      }
+    })();
   }
 
   private handleCreateEntity(): void {
@@ -56,15 +66,13 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         const id = sc.decode(msg.data) as EntityId;
-        // Stop all workers for this entity
+        // Publish stop events for all workers on this entity
         const componentIds = this.repo.getComponentIds(id);
         for (const componentId of componentIds) {
-          const key = `${id as string}:${componentId as string}`;
-          const worker = this.activeWorkers.get(key);
-          if (worker) {
-            worker.stop();
-            this.activeWorkers.delete(key);
-          }
+          this.nc.publish(
+            Subjects.stopWorker,
+            sc.encode(JSON.stringify({ entityId: id, componentId })),
+          );
         }
         const result = this.repo.delete(id);
         msg.respond(sc.encode(String(result)));
@@ -98,13 +106,11 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { entityId, componentId } = JSON.parse(
-            sc.decode(msg.data),
-          ) as {
+          const { entityId, componentId } = JSON.parse(sc.decode(msg.data)) as {
             entityId: EntityId;
             componentId: ComponentId;
           };
-          const registered = this.workers.get(componentId as string);
+          const registered = this.components.get(componentId as string);
           if (!registered) {
             msg.respond(
               sc.encode(
@@ -123,12 +129,10 @@ export class EntityHandler {
             registered.compositeIds,
           );
 
-          // Create and start worker — it subscribes to its own topics
-          const worker = new registered.workerClass();
-          worker.start(this.nc, entityId);
-          this.activeWorkers.set(
-            `${entityId as string}:${componentId as string}`,
-            worker,
+          // Publish start event — worker container will handle it
+          this.nc.publish(
+            Subjects.startWorker,
+            sc.encode(JSON.stringify({ entityId, componentId })),
           );
 
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
@@ -145,13 +149,11 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { entityId, componentId } = JSON.parse(
-            sc.decode(msg.data),
-          ) as {
+          const { entityId, componentId } = JSON.parse(sc.decode(msg.data)) as {
             entityId: EntityId;
             componentId: ComponentId;
           };
-          const registered = this.workers.get(componentId as string);
+          const registered = this.components.get(componentId as string);
           const compositeIds = registered ? registered.compositeIds : [];
           const result = this.repo.removeComponent(
             entityId,
@@ -159,13 +161,11 @@ export class EntityHandler {
             compositeIds,
           );
 
-          // Stop worker — it unsubscribes from its own topics
-          const key = `${entityId as string}:${componentId as string}`;
-          const worker = this.activeWorkers.get(key);
-          if (worker) {
-            worker.stop();
-            this.activeWorkers.delete(key);
-          }
+          // Publish stop event — worker container will handle it
+          this.nc.publish(
+            Subjects.stopWorker,
+            sc.encode(JSON.stringify({ entityId, componentId })),
+          );
 
           msg.respond(sc.encode(String(result)));
         } catch (e) {
@@ -180,9 +180,7 @@ export class EntityHandler {
     const sub = this.nc.subscribe(Subjects.hasComponent);
     (async () => {
       for await (const msg of sub) {
-        const { entityId, componentId } = JSON.parse(
-          sc.decode(msg.data),
-        ) as {
+        const { entityId, componentId } = JSON.parse(sc.decode(msg.data)) as {
           entityId: EntityId;
           componentId: ComponentId;
         };
