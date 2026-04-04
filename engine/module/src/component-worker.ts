@@ -3,7 +3,9 @@ import type { NatsConnection, Subscription } from "nats";
 import { StringCodec } from "nats";
 import type {
   Component,
+  ComponentDefinition,
   ComponentMethodDefinition,
+  ComponentPropertyDefinition,
   EntityId,
 } from "@engine/core";
 import {
@@ -21,12 +23,63 @@ const sc = StringCodec();
 
 // --- Types ---
 
+import type { ComponentProperty } from "./component-property.js";
+
 interface PropertyAccessor {
   get(): unknown | Promise<unknown>;
   set(value: unknown): void | Promise<void>;
 }
 
 export type ComponentWorkerClass = new () => ComponentWorker;
+
+// --- Worker implementation type ---
+
+type InferWorkerProperties<
+  P extends Record<string, ComponentPropertyDefinition>,
+> = {
+  [K in keyof P]: ComponentProperty<z.infer<P[K]>>;
+};
+
+type InferWorkerMethod<M extends ComponentMethodDefinition> =
+  M["input"] extends z.ZodType
+    ? M["output"] extends z.ZodType
+      ? (
+          input: z.infer<M["input"]>,
+        ) => z.infer<M["output"]> | Promise<z.infer<M["output"]>>
+      : (input: z.infer<M["input"]>) => void | Promise<void>
+    : M["output"] extends z.ZodType
+      ? () => z.infer<M["output"]> | Promise<z.infer<M["output"]>>
+      : () => void | Promise<void>;
+
+type InferWorkerMethods<M extends Record<string, ComponentMethodDefinition>> = {
+  [K in keyof M]: InferWorkerMethod<M[K]>;
+};
+
+type OwnWorkerImpl<D extends ComponentDefinition> =
+  (D["properties"] extends Record<string, ComponentPropertyDefinition>
+    ? InferWorkerProperties<D["properties"]>
+    : unknown) &
+    (D["methods"] extends Record<string, ComponentMethodDefinition>
+      ? InferWorkerMethods<D["methods"]>
+      : unknown);
+
+type UnionToIntersection<U> = (
+  U extends unknown ? (k: U) => void : never
+) extends (k: infer I) => void
+  ? I
+  : never;
+
+type CompositeWorkerImpls<CS extends readonly Component[]> =
+  CS extends readonly (infer C extends Component)[]
+    ? UnionToIntersection<WorkerImplementation<C>>
+    : unknown;
+
+export type WorkerImplementation<C extends Component> = OwnWorkerImpl<
+  C["definition"]
+> &
+  (C["definition"]["composites"] extends readonly Component[]
+    ? CompositeWorkerImpls<C["definition"]["composites"]>
+    : unknown);
 
 // --- Base class ---
 
@@ -180,11 +233,12 @@ export abstract class ComponentWorker {
 
 // --- Decorators ---
 
-export function Implements(component: Component) {
-  return function <T extends abstract new (...args: any[]) => ComponentWorker>(
-    target: T,
-    context: ClassDecoratorContext<T>,
-  ) {
+export function Implements<C extends Component>(component: C) {
+  return function <
+    T extends abstract new (
+      ...args: any[]
+    ) => ComponentWorker & WorkerImplementation<C>,
+  >(target: T, context: ClassDecoratorContext<T>) {
     context.metadata[COMPONENT_KEY] = component;
   };
 }
