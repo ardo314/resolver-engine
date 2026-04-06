@@ -3,39 +3,16 @@
     "tasks": [
         {
             "label": "build",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/Engine.sln",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary;ForceNoAlign"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "publish",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "publish",
-                "${workspaceFolder}/Engine.sln",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary;ForceNoAlign"
-            ],
-            "problemMatcher": "$msCompile"
+            "type": "npm",
+            "script": "build",
+            "problemMatcher": "$tsc"
         },
         {
             "label": "watch",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "watch",
-                "run",
-                "--project",
-                "${workspaceFolder}/Engine.sln"
-            ],
-            "problemMatcher": "$msCompile"
+            "type": "npm",
+            "script": "watch",
+            "isBackground": true,
+            "problemMatcher": "$tsc-watch"
         }
     ]
 }

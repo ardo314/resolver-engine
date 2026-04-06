@@ -1,0 +1,17 @@
+{
+  "name": "component-engine",
+  "private": true,
+  "workspaces": [
+    "engine/*",
+    "modules/*"
+  ],
+  "scripts": {
+    "build": "tsc --build tsconfig.packages.json",
+    "clean": "tsc --build --clean tsconfig.packages.json",
+    "watch": "tsc --build --watch tsconfig.packages.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^25.0.0"
+  }
+}

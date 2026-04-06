@@ -1,0 +1,361 @@
+/* ── Layout ── */
+.editor {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.editor-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  overflow: hidden;
+}
+
+.editor-body[data-left] {
+  grid-template-columns: 260px 1fr;
+}
+
+.editor-body[data-right] {
+  grid-template-columns: 1fr 320px;
+}
+
+.editor-body[data-left][data-right] {
+  grid-template-columns: 260px 1fr 320px;
+}
+
+.editor-left,
+.editor-right {
+  overflow-y: auto;
+  border-color: var(--border);
+}
+
+.editor-left {
+  border-right: 1px solid var(--border);
+}
+
+.editor-right {
+  border-left: 1px solid var(--border);
+}
+
+.editor-center {
+  background: var(--bg-deeper);
+  overflow: auto;
+}
+
+/* ── TopBar ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.topbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+  letter-spacing: 0.3px;
+}
+
+.topbar-menus {
+  display: flex;
+  gap: 2px;
+}
+
+.topbar-menu {
+  position: relative;
+}
+
+.topbar-menu-trigger {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.topbar-menu-trigger:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.topbar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  min-width: 160px;
+  z-index: 100;
+}
+
+.topbar-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.topbar-dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
+.topbar-dropdown-item .check {
+  width: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* ── Panel ── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 32px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.panel-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  border-radius: 3px;
+}
+
+.panel-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+/* ── Entities Panel ── */
+.entity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entity-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 4px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.entity-item:hover {
+  background: var(--bg-hover);
+}
+
+.entity-item.selected {
+  background: var(--bg-selected);
+  color: var(--text-heading);
+}
+
+.entity-icon {
+  color: var(--accent);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.entity-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entity-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+
+/* ── Inspector Panel ── */
+.inspector-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.inspector-entity-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.inspector-entity-id {
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text-secondary);
+}
+
+.component-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.component-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+  cursor: pointer;
+  user-select: none;
+}
+
+.component-header:hover {
+  background: var(--bg-hover);
+}
+
+.schema-section {
+  padding: 0 12px 8px;
+}
+
+.schema-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 0;
+}
+
+.property-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.property-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 13px;
+}
+
+.property-name {
+  color: var(--text-secondary);
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.property-value {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Connection Banner ── */
+.connection-banner {
+  padding: 6px 12px;
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  font-size: 12px;
+  text-align: center;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.3);
+  flex-shrink: 0;
+}
+
+/* ── Entity Toolbar ── */
+.entity-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.entity-toolbar-btn {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.entity-toolbar-btn:hover {
+  background: var(--bg-selected);
+  color: var(--text-heading);
+}
+
+.entity-toolbar-btn.danger {
+  color: #f87171;
+}
+
+.entity-toolbar-btn.danger:hover {
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.entity-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  list-style: none;
+}

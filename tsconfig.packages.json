@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "engine/core" },
+    { "path": "engine/backend" },
+    { "path": "engine/client" },
+    { "path": "engine/module" },
+    { "path": "engine/editor" },
+    { "path": "modules/core" },
+    { "path": "modules/in-memory" },
+    { "path": "modules/in-memory-workers" },
+    { "path": "modules/nova" },
+    { "path": "modules/nova-workers" }
+  ]
+}

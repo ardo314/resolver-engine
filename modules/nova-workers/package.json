@@ -1,0 +1,17 @@
+{
+  "name": "@ardo314/nova-workers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@engine/module": "0.0.1",
+    "@ardo314/nova": "0.0.1"
+  }
+}

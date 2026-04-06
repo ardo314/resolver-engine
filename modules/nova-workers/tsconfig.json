@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "extends": "../../tsconfig.json",
+  "include": ["src"],
+  "references": [
+    { "path": "../../engine/core" },
+    { "path": "../../engine/module" },
+    { "path": "../core" },
+    { "path": "../nova" }
+  ]
+}
