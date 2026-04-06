@@ -2,7 +2,7 @@ import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type { EntityId } from "@engine/core";
 import { Subjects } from "@engine/core";
-import { Entity } from "./entity.js";
+import { Entity } from "./entity";
 
 const sc = StringCodec();
 
