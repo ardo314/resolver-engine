@@ -13,6 +13,7 @@
     "clean": "tsc --build --clean"
   },
   "dependencies": {
-    "@engine/core": "0.0.1"
+    "@engine/core": "0.0.1",
+    "nats": "^2.29.3"
   }
 }

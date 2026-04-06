@@ -1,10 +1,10 @@
-import { parentComponent } from "@ardo314/nova";
+import { parentComponent } from "@ardo314/in-memory";
 import { type EntityId, entityIdSchema } from "@engine/core";
 import {
   ComponentWorker,
   Implements,
   type ComponentProperty,
-} from "@engine/module";
+} from "@engine/worker";
 
 @Implements(parentComponent)
 export class ParentWorker extends ComponentWorker {

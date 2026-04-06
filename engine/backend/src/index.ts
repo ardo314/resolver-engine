@@ -1,8 +1,8 @@
 import { connect } from "nats";
-import { EntityHandler } from "./entity-handler.js";
-export { EntityRepository } from "./entity-repository.js";
+import { EntityHandler } from "./entity-handler";
+export { EntityRepository } from "./entity-repository";
 
-const nc = await connect();
+const nc = await connect({ servers: process.env.NATS_URL });
 const handler = new EntityHandler(nc);
 
 await handler.listen();

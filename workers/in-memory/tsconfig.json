@@ -7,8 +7,8 @@
   "include": ["src"],
   "references": [
     { "path": "../../engine/core" },
-    { "path": "../../engine/module" },
-    { "path": "../core" },
-    { "path": "../nova" }
+    { "path": "../../engine/worker" },
+    { "path": "../../modules/core" },
+    { "path": "../../modules/in-memory" }
   ]
 }

@@ -1,11 +1,11 @@
-export { EntityId, entityIdSchema } from "./entity-id.js";
+export { EntityId, entityIdSchema } from "./entity-id";
 export {
   defineComponent,
   isComponent,
   getAllComposites,
   getAllProperties,
   getAllMethods,
-} from "./component.js";
+} from "./component";
 export type {
   Component,
   ComponentId,
@@ -16,5 +16,5 @@ export type {
   InferComponentProperties,
   InferComponentMethod,
   InferComponentMethods,
-} from "./component.js";
-export { Subjects, WorkerSubjects } from "./subjects.js";
+} from "./component";
+export { Subjects, WorkerSubjects } from "./subjects";
