@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Isometric cube face colors -->
+    <!-- Main cube (deep blue) -->
+    <linearGradient id="mainTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4A90D9"/>
+      <stop offset="100%" stop-color="#3B7DD8"/>
+    </linearGradient>
+    <linearGradient id="mainLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2C5F99"/>
+      <stop offset="100%" stop-color="#264F80"/>
+    </linearGradient>
+    <linearGradient id="mainRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E3F66"/>
+      <stop offset="100%" stop-color="#1A3557"/>
+    </linearGradient>
+
+    <!-- Component block (teal) -->
+    <linearGradient id="compTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2DD4A8"/>
+      <stop offset="100%" stop-color="#26C09A"/>
+    </linearGradient>
+    <linearGradient id="compLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1EA87F"/>
+      <stop offset="100%" stop-color="#19906D"/>
+    </linearGradient>
+    <linearGradient id="compRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#147A5B"/>
+      <stop offset="100%" stop-color="#10664C"/>
+    </linearGradient>
+
+    <!-- Accent block (amber) -->
+    <linearGradient id="accTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F5A623"/>
+      <stop offset="100%" stop-color="#E89A1B"/>
+    </linearGradient>
+    <linearGradient id="accLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C8841A"/>
+      <stop offset="100%" stop-color="#B07316"/>
+    </linearGradient>
+    <linearGradient id="accRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9A6514"/>
+      <stop offset="100%" stop-color="#845710"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#0F1729"/>
+
+  <!-- 
+    Isometric grid reference:
+    x-axis goes right-down at 30°
+    y-axis goes left-down at 30°
+    z-axis goes straight up
+    
+    Unit cube side = 70px
+    iso x-step: dx=60.6, dy=35
+    iso y-step: dx=-60.6, dy=35  
+    iso z-step: dx=0, dy=-70
+  -->
+
+  <!-- Large main cube (entity) - bottom center -->
+  <g transform="translate(256, 310)">
+    <!-- Top face -->
+    <polygon points="0,-70 61,-35 0,0 -61,-35" fill="url(#mainTop)"/>
+    <!-- Left face -->
+    <polygon points="-61,-35 0,0 0,70 -61,35" fill="url(#mainLeft)"/>
+    <!-- Right face -->
+    <polygon points="61,-35 0,0 0,70 61,35" fill="url(#mainRight)"/>
+  </g>
+
+  <!-- Component cube - top left (stacked on main) -->
+  <g transform="translate(195, 240)">
+    <!-- Top face -->
+    <polygon points="0,-70 61,-35 0,0 -61,-35" fill="url(#compTop)"/>
+    <!-- Left face -->
+    <polygon points="-61,-35 0,0 0,70 -61,35" fill="url(#compLeft)"/>
+    <!-- Right face -->
+    <polygon points="61,-35 0,0 0,70 61,35" fill="url(#compRight)"/>
+  </g>
+
+  <!-- Component cube - top right (stacked on main) -->
+  <g transform="translate(317, 240)">
+    <!-- Top face -->
+    <polygon points="0,-70 61,-35 0,0 -61,-35" fill="url(#compTop)"/>
+    <!-- Left face -->
+    <polygon points="-61,-35 0,0 0,70 -61,35" fill="url(#compLeft)"/>
+    <!-- Right face -->
+    <polygon points="61,-35 0,0 0,70 61,35" fill="url(#compRight)"/>
+  </g>
+
+  <!-- Accent cube - on top center (worker/behaviour) -->
+  <g transform="translate(256, 170)">
+    <!-- Top face -->
+    <polygon points="0,-70 61,-35 0,0 -61,-35" fill="url(#accTop)"/>
+    <!-- Left face -->
+    <polygon points="-61,-35 0,0 0,70 -61,35" fill="url(#accLeft)"/>
+    <!-- Right face -->
+    <polygon points="61,-35 0,0 0,70 61,35" fill="url(#accRight)"/>
+  </g>
+
+  <!-- Small floating component cube - far left -->
+  <g transform="translate(120, 310)">
+    <g transform="scale(0.6)">
+      <!-- Top face -->
+      <polygon points="0,-70 61,-35 0,0 -61,-35" fill="url(#compTop)" opacity="0.7"/>
+      <!-- Left face -->
+      <polygon points="-61,-35 0,0 0,70 -61,35" fill="url(#compLeft)" opacity="0.7"/>
+      <!-- Right face -->
+      <polygon points="61,-35 0,0 0,70 61,35" fill="url(#compRight)" opacity="0.7"/>
+    </g>
+  </g>
+
+  <!-- Small floating accent cube - far right -->
+  <g transform="translate(392, 310)">
+    <g transform="scale(0.6)">
+      <!-- Top face -->
+      <polygon points="0,-70 61,-35 0,0 -61,-35" fill="url(#accTop)" opacity="0.7"/>
+      <!-- Left face -->
+      <polygon points="-61,-35 0,0 0,70 -61,35" fill="url(#accLeft)" opacity="0.7"/>
+      <!-- Right face -->
+      <polygon points="61,-35 0,0 0,70 61,35" fill="url(#accRight)" opacity="0.7"/>
+    </g>
+  </g>
+
+  <!-- Connection lines (dotted) from floating cubes to main structure -->
+  <line x1="145" y1="296" x2="175" y2="276" stroke="#2DD4A8" stroke-width="2" stroke-dasharray="4,4" opacity="0.5"/>
+  <line x1="367" y1="296" x2="340" y2="276" stroke="#F5A623" stroke-width="2" stroke-dasharray="4,4" opacity="0.5"/>
+</svg>
