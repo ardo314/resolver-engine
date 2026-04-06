@@ -2,20 +2,20 @@
 
 ## Project Structure
 
-Monorepo with engine packages under `engine/` and user modules under `modules/`:
+Monorepo with engine packages under `engine/`, component definition modules under `modules/`, and worker implementations under `workers/`:
 
 | Package                      | Path                        | Description                                                  |
 | ---------------------------- | --------------------------- | ------------------------------------------------------------ |
 | `@engine/core`               | `engine/core`               | Core types: entities, components                             |
 | `@engine/backend`            | `engine/backend`            | Server-side entity structure management                      |
 | `@engine/client`             | `engine/client`             | Client-side API                                              |
-| `@engine/module`             | `engine/module`             | Module system: workers, decorators, WorkerHost               |
+| `@engine/worker`             | `engine/worker`             | Worker system: workers, decorators, WorkerHost               |
 | `@engine/editor`             | `engine/editor`             | Vite + React frontend                                        |
 | `@ardo314/core`              | `modules/core`              | Core schemas and base components (pose, name, parent)        |
 | `@ardo314/in-memory`         | `modules/in-memory`         | In-memory component definitions that compose core components |
-| `@ardo314/in-memory-workers` | `modules/in-memory-workers` | In-memory workers (depends on module, in-memory)             |
 | `@ardo314/nova`              | `modules/nova`              | Nova component definitions that compose core components      |
-| `@ardo314/nova-workers`      | `modules/nova-workers`      | Nova workers (depends on module, nova)                       |
+| `@ardo314/in-memory-workers` | `workers/in-memory`         | In-memory workers (depends on worker, in-memory)             |
+| `@ardo314/nova-workers`      | `workers/nova`              | Nova workers (depends on worker, nova)                       |
 
 All packages use TypeScript project references and build via `tsc --build`.
 

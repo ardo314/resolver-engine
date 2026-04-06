@@ -3,7 +3,7 @@ import {
   ComponentWorker,
   Implements,
   type ComponentProperty,
-} from "@engine/module";
+} from "@engine/worker";
 
 @Implements(nameComponent)
 export class NameWorker extends ComponentWorker {

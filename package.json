@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "engine/*",
-    "modules/*"
+    "modules/*",
+    "workers/*"
   ],
   "scripts": {
     "build": "tsc --build tsconfig.packages.json",

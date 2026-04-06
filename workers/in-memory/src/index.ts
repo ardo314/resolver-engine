@@ -1,5 +1,5 @@
 import { connect } from "nats";
-import { WorkerHost } from "@engine/module";
+import { WorkerHost } from "@engine/worker";
 import { NameWorker } from "./name-worker.js";
 import { ParentWorker } from "./parent-worker.js";
 import { PoseWorker } from "./pose-worker.js";

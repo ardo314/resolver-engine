@@ -1,5 +1,5 @@
 {
-  "name": "@engine/module",
+  "name": "@engine/worker",
   "version": "0.0.1",
   "private": true,
   "type": "module",

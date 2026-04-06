@@ -4,7 +4,7 @@ import {
   ComponentWorker,
   Implements,
   type ComponentProperty,
-} from "@engine/module";
+} from "@engine/worker";
 
 @Implements(poseComponent)
 export class PoseWorker extends ComponentWorker {
