@@ -35,4 +35,6 @@ COPY --from=build /app/engine/backend/dist/ engine/backend/dist/
 
 USER node
 
+ENV NATS_URL=nats://localhost:4222
+
 CMD ["node", "engine/backend/dist/index.js"]
