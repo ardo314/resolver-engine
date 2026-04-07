@@ -15,7 +15,7 @@ set -euo pipefail
 : "${CELL_NAME:?CELL_NAME is not set — must run inside a NOVA cell app}"
 : "${NATS_BROKER:?NATS_BROKER is not set — must run inside a NOVA cell app}"
 
-API_URL="${NOVA_API}"
+API_URL="${NOVA_API}/api/v2"
 
 # ---------------------------------------------------------------------------
 # Helper: install an app into the cell.
