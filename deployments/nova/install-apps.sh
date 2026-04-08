@@ -15,7 +15,7 @@ set -euo pipefail
 : "${CELL_NAME:?CELL_NAME is not set — must run inside a NOVA cell app}"
 : "${NATS_BROKER:?NATS_BROKER is not set — must run inside a NOVA cell app}"
 
-API_URL="${NOVA_API}"
+API_URL="${NOVA_API}/api/v2"
 
 # ---------------------------------------------------------------------------
 # Helper: install an app into the cell.
@@ -70,8 +70,31 @@ install_app "$(cat <<EOF
 EOF
 )"
 
+# Editor — Vite + React frontend served via nginx
+EDITOR_IMAGE="${EDITOR_IMAGE:-ghcr.io/ardo314/component-engine-editor:${VERSION}}"
+
+# NATS_WS_URL is the WebSocket endpoint the browser connects to.
+# It differs from NATS_BROKER (TCP) — the deployer must set it.
+: "${NATS_WS_URL:?NATS_WS_URL is not set — provide the NATS WebSocket URL for the editor}"
+
+install_app "$(cat <<EOF
+{
+  "name": "component-engine-editor",
+  "app_icon": "favicon.ico",
+  "container_image": {
+    "image": "${EDITOR_IMAGE}"
+  },
+  "port": 8080,
+  "environment": [
+    { "name": "NATS_URL", "value": "${NATS_WS_URL}" },
+    { "name": "BASE_PATH", "value": "${BASE_PATH}" }
+  ]
+}
+EOF
+)"
+
 # ---------------------------------------------------------------------------
-# Add more apps here, e.g. workers, editor
+# Add more apps here, e.g. workers
 # ---------------------------------------------------------------------------
 
 echo ""

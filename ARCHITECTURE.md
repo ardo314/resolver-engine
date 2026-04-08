@@ -144,6 +144,17 @@ Each property and method gets its own NATS subject. Workers subscribe to these s
 - **Build command:** `npm run build` (root)
 - **Watch:** `npm run watch` (root)
 
+## Deployment
+
+Container images are built from Dockerfiles within the respective packages and deployed as NOVA cell apps via the installer script at `deployments/nova/install-apps.sh`.
+
+| Image                      | Dockerfile                  | Description                          |
+| -------------------------- | --------------------------- | ------------------------------------ |
+| `component-engine-backend` | `engine/backend/Dockerfile` | Node.js server for entity management |
+| `component-engine-editor`  | `engine/editor/Dockerfile`  | Vite/React SPA served via nginx      |
+
+The backend image is a multi-stage Node.js build. The editor image builds the Vite SPA in a Node.js stage and serves the static output with nginx on port 8080, with SPA fallback routing.
+
 ## Versioning & Release
 
 The project uses [semantic-release](https://github.com/semantic-release/semantic-release) for automated semantic versioning on `main`, following a trunk-based development workflow:
