@@ -35,7 +35,7 @@ FROM nginx:alpine
 # Remove the default site so our config is the only one.
 RUN rm /etc/nginx/conf.d/default.conf
 
-COPY engine/editor/nginx.conf /etc/nginx/conf.d/default.conf
+COPY engine/editor/nginx.conf /etc/nginx/conf.d/default.conf.template
 COPY --from=build /app/engine/editor/dist/ /usr/share/nginx/html/
 COPY engine/editor/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

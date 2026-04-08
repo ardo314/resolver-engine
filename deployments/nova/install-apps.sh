@@ -86,7 +86,8 @@ install_app "$(cat <<EOF
   },
   "port": 8080,
   "environment": [
-    { "name": "NATS_URL", "value": "${NATS_WS_URL}" }
+    { "name": "NATS_URL", "value": "${NATS_WS_URL}" },
+    { "name": "BASE_PATH", "value": "${BASE_PATH}" }
   ]
 }
 EOF
