@@ -32,18 +32,14 @@ RUN npm run build --workspace=@engine/editor
 # --- production image ---
 FROM nginx:alpine
 
-COPY --from=build /app/engine/editor/dist/ /usr/share/nginx/html/
+# Remove the default site so our config is the only one.
+RUN rm /etc/nginx/conf.d/default.conf
 
-# SPA fallback: serve index.html for all routes
-RUN printf 'server {\n\
-    listen 8080;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-    location / {\n\
-    try_files $uri $uri/ /index.html;\n\
-    }\n\
-    }\n' > /etc/nginx/conf.d/default.conf
+COPY engine/editor/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/engine/editor/dist/ /usr/share/nginx/html/
+COPY engine/editor/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/entrypoint.sh"]
