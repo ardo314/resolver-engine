@@ -64,7 +64,8 @@ install_app "$(cat <<EOF
   },
   "port": 8080,
   "environment": [
-    { "name": "NATS_URL", "value": "${NATS_BROKER}" }
+    { "name": "NATS_URL", "value": "${NATS_BROKER}" },
+    { "name": "BASE_PATH", "value": "/${CELL_NAME}/component-engine-backend" }
   ]
 }
 EOF
@@ -73,9 +74,7 @@ EOF
 # Editor — Vite + React frontend served via nginx
 EDITOR_IMAGE="${EDITOR_IMAGE:-ghcr.io/ardo314/component-engine-editor:${VERSION}}"
 
-# NATS_WS_URL is the WebSocket endpoint the browser connects to.
-# It differs from NATS_BROKER (TCP) — the deployer must set it.
-: "${NATS_WS_URL:?NATS_WS_URL is not set — provide the NATS WebSocket URL for the editor}"
+NATS_WS_URL="/nats"
 
 install_app "$(cat <<EOF
 {
@@ -87,7 +86,7 @@ install_app "$(cat <<EOF
   "port": 8080,
   "environment": [
     { "name": "NATS_URL", "value": "${NATS_WS_URL}" },
-    { "name": "BASE_PATH", "value": "${BASE_PATH}" }
+    { "name": "BASE_PATH", "value": "/${CELL_NAME}/component-engine-editor" }
   ]
 }
 EOF

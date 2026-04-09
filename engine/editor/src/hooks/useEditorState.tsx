@@ -77,7 +77,8 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     let disposed = false;
     (async () => {
       try {
-        const nc = await connect({ servers: "ws://localhost:9222" });
+        const natsUrl = window.__ENV__?.NATS_URL ?? import.meta.env.VITE_NATS_URL;
+        const nc = await connect({ servers: natsUrl });
         if (disposed) {
           await nc.close();
           return;
