@@ -1,3 +1,9 @@
+## [1.0.2](https://github.com/ardo314/component-engine/compare/v1.0.1...v1.0.2) (2026-04-10)
+
+### Bug Fixes
+
+* install ([#9](https://github.com/ardo314/component-engine/issues/9)) ([d0dcf19](https://github.com/ardo314/component-engine/commit/d0dcf1978acc06e76560029c2574866736f94765))
+
 ## [1.0.1](https://github.com/ardo314/component-engine/compare/v1.0.0...v1.0.1) (2026-04-08)
 
 ### Bug Fixes
