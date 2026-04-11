@@ -22,3 +22,7 @@ RUN curl -sL "https://github.com/nats-io/nats-server/releases/download/${NATS_VE
     | tar xz -C /tmp \
     && cp /tmp/nats-server-${NATS_VERSION}-linux-amd64/nats-server /usr/local/bin/ \
     && rm -rf /tmp/nats-server-*
+
+# Install Skaffold
+RUN curl -Lo /usr/local/bin/skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64 \
+    && chmod +x /usr/local/bin/skaffold

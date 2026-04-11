@@ -1,7 +1,5 @@
 FROM node:25-slim AS build
 
-ARG VERSION=latest
-
 WORKDIR /app
 
 # Copy root workspace files
@@ -20,8 +18,10 @@ RUN npx tsc --build deployments/nova
 # --- production image ---
 FROM node:25-slim
 
-ARG VERSION=latest
-ENV VERSION=${VERSION}
+ARG BACKEND_IMAGE
+ARG EDITOR_IMAGE
+ENV BACKEND_IMAGE=${BACKEND_IMAGE}
+ENV EDITOR_IMAGE=${EDITOR_IMAGE}
 
 WORKDIR /app
 

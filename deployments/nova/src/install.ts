@@ -21,13 +21,11 @@ const NOVA_API_URL = novaApi;
 const CELL = cellName;
 const NATS = natsBroker;
 
-const version = process.env.VERSION ?? "latest";
-const backendImage =
-  process.env.BACKEND_IMAGE ??
-  `ghcr.io/ardo314/component-engine-backend:${version}`;
-const editorImage =
-  process.env.EDITOR_IMAGE ??
-  `ghcr.io/ardo314/component-engine-editor:${version}`;
+const backendImage = process.env.BACKEND_IMAGE;
+const editorImage = process.env.EDITOR_IMAGE;
+
+if (!backendImage) throw new Error("BACKEND_IMAGE is not set");
+if (!editorImage) throw new Error("EDITOR_IMAGE is not set");
 
 const config = new Configuration({ basePath: `${NOVA_API_URL}/api/v2` });
 const api = new ApplicationApi(config);

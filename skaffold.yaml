@@ -1,0 +1,30 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: component-engine
+
+build:
+  tagPolicy:
+    sha256: {}
+  local:
+    push: true
+  artifacts:
+    - image: ghcr.io/ardo314/component-engine-backend
+      context: .
+      docker:
+        dockerfile: engine/backend/Dockerfile
+
+    - image: ghcr.io/ardo314/component-engine-editor
+      context: .
+      docker:
+        dockerfile: engine/editor/Dockerfile
+
+    - image: ghcr.io/ardo314/component-engine-nova
+      context: .
+      docker:
+        dockerfile: deployments/nova/Dockerfile
+        requires:
+          - image: ghcr.io/ardo314/component-engine-backend
+            alias: BACKEND_IMAGE
+          - image: ghcr.io/ardo314/component-engine-editor
+            alias: EDITOR_IMAGE
