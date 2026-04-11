@@ -2,10 +2,10 @@ export {
   ComponentWorker,
   Implements,
   getWorkerComponent,
-} from "./component-worker";
+} from "./component-worker.js";
 export type {
   ComponentWorkerClass,
   WorkerImplementation,
-} from "./component-worker";
-export type { ComponentProperty } from "./component-property";
-export { WorkerHost } from "./worker-host";
+} from "./component-worker.js";
+export type { ComponentProperty } from "./component-property.js";
+export { WorkerHost } from "./worker-host.js";

@@ -23,7 +23,7 @@ const sc = StringCodec();
 
 // --- Types ---
 
-import type { ComponentProperty } from "./component-property";
+import type { ComponentProperty } from "./component-property.js";
 
 interface PropertyAccessor {
   get(): unknown | Promise<unknown>;

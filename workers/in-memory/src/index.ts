@@ -1,9 +1,9 @@
 import { connect } from "nats";
 import { WorkerHost } from "@engine/worker";
-import { NameWorker } from "./name-worker";
-import { ParentWorker } from "./parent-worker";
-import { PoseWorker } from "./pose-worker";
-import { FollowPoseWorker } from "./follow-pose-worker";
+import { NameWorker } from "./name-worker.js";
+import { ParentWorker } from "./parent-worker.js";
+import { PoseWorker } from "./pose-worker.js";
+import { FollowPoseWorker } from "./follow-pose-worker.js";
 
 const nc = await connect();
 const host = new WorkerHost(nc);

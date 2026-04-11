@@ -2,8 +2,8 @@ import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type { ComponentId, EntityId } from "@engine/core";
 import { Subjects, getAllComposites } from "@engine/core";
-import type { ComponentWorkerClass } from "./component-worker";
-import { ComponentWorker, getWorkerComponent } from "./component-worker";
+import type { ComponentWorkerClass } from "./component-worker.js";
+import { ComponentWorker, getWorkerComponent } from "./component-worker.js";
 
 const sc = StringCodec();
 

@@ -1,2 +1,2 @@
-export { World } from "./world";
-export { Entity } from "./entity";
+export { World } from "./world.js";
+export { Entity } from "./entity.js";
