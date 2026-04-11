@@ -6,7 +6,7 @@ import {
 import { isAxiosError } from "axios";
 import { backendApp, editorApp } from "./apps.js";
 
-const novaApi = process.env.NOVA_API;
+const novaApi = `http://${process.env.NOVA_API}`;
 const cellName = process.env.CELL_NAME;
 const natsBroker = process.env.NATS_BROKER;
 
