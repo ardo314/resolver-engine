@@ -14,6 +14,8 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/ardo314/component-engine-backend
   EDITOR_IMAGE: ghcr.io/ardo314/component-engine-editor
+  IN_MEMORY_WORKER_IMAGE: ghcr.io/ardo314/component-engine-in-memory-worker
+  NOVA_WORKER_IMAGE: ghcr.io/ardo314/component-engine-nova-worker
   NOVA_IMAGE: ghcr.io/ardo314/component-engine-nova
 
 jobs:
@@ -76,6 +78,26 @@ jobs:
             ${{ env.EDITOR_IMAGE }}:latest
             ${{ env.EDITOR_IMAGE }}:${{ steps.version.outputs.version }}
 
+      - name: Build and push in-memory worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: workers/in-memory/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IN_MEMORY_WORKER_IMAGE }}:latest
+            ${{ env.IN_MEMORY_WORKER_IMAGE }}:${{ steps.version.outputs.version }}
+
+      - name: Build and push nova worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: workers/nova/Dockerfile
+          push: true
+          tags: |
+            ${{ env.NOVA_WORKER_IMAGE }}:latest
+            ${{ env.NOVA_WORKER_IMAGE }}:${{ steps.version.outputs.version }}
+
       - name: Build and push nova image
         uses: docker/build-push-action@v6
         with:
@@ -85,6 +107,8 @@ jobs:
           build-args: |
             BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}:${{ steps.version.outputs.version }}
             EDITOR_IMAGE=${{ env.EDITOR_IMAGE }}:${{ steps.version.outputs.version }}
+            WORKER_IMAGE_0=${{ env.IN_MEMORY_WORKER_IMAGE }}:${{ steps.version.outputs.version }}
+            WORKER_IMAGE_1=${{ env.NOVA_WORKER_IMAGE }}:${{ steps.version.outputs.version }}
           tags: |
             ${{ env.NOVA_IMAGE }}:latest
             ${{ env.NOVA_IMAGE }}:${{ steps.version.outputs.version }}
