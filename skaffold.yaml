@@ -17,6 +17,16 @@ build:
       docker:
         dockerfile: engine/editor/Dockerfile
 
+    - image: ghcr.io/ardo314/component-engine-in-memory-worker
+      context: .
+      docker:
+        dockerfile: workers/in-memory/Dockerfile
+
+    - image: ghcr.io/ardo314/component-engine-nova-worker
+      context: .
+      docker:
+        dockerfile: workers/nova/Dockerfile
+
     - image: ghcr.io/ardo314/component-engine-nova
       context: .
       requires:
@@ -24,5 +34,9 @@ build:
           alias: BACKEND_IMAGE
         - image: ghcr.io/ardo314/component-engine-editor
           alias: EDITOR_IMAGE
+        - image: ghcr.io/ardo314/component-engine-in-memory-worker
+          alias: WORKER_IMAGE_0
+        - image: ghcr.io/ardo314/component-engine-nova-worker
+          alias: WORKER_IMAGE_1
       docker:
         dockerfile: deployments/nova/Dockerfile

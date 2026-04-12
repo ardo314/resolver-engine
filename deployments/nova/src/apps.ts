@@ -39,3 +39,23 @@ export function editorApp(
     ],
   };
 }
+
+export function workerApp(
+  name: string,
+  image: string,
+  natsUrl: string,
+  natsUser?: string,
+  natsPass?: string,
+): App {
+  const env = [{ name: "NATS_URL", value: natsUrl }];
+  if (natsUser) env.push({ name: "NATS_USER", value: natsUser });
+  if (natsPass) env.push({ name: "NATS_PASS", value: natsPass });
+
+  return {
+    name,
+    app_icon: "favicon.ico",
+    container_image: { image },
+    port: 8080,
+    environment: env,
+  };
+}

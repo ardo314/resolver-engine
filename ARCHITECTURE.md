@@ -149,17 +149,19 @@ Each property and method gets its own NATS subject. Workers subscribe to these s
 
 Container images are built from Dockerfiles within the respective packages and deployed as NOVA cell apps via the `@engine/nova-deploy` package.
 
-| Image                      | Dockerfile                    | Description                              |
-| -------------------------- | ----------------------------- | ---------------------------------------- |
-| `component-engine-backend` | `engine/backend/Dockerfile`   | Node.js server for entity management     |
-| `component-engine-editor`  | `engine/editor/Dockerfile`    | Vite/React SPA served via nginx          |
-| `component-engine-nova`    | `deployments/nova/Dockerfile` | NOVA cell app installer (Node.js)        |
+| Image                               | Dockerfile                     | Description                          |
+| ----------------------------------- | ------------------------------ | ------------------------------------ |
+| `component-engine-backend`          | `engine/backend/Dockerfile`    | Node.js server for entity management |
+| `component-engine-editor`           | `engine/editor/Dockerfile`     | Vite/React SPA served via nginx      |
+| `component-engine-in-memory-worker` | `workers/in-memory/Dockerfile` | In-memory worker host (Node.js)      |
+| `component-engine-nova-worker`      | `workers/nova/Dockerfile`      | Nova worker host (Node.js)           |
+| `component-engine-nova`             | `deployments/nova/Dockerfile`  | NOVA cell app installer (Node.js)    |
 
 The backend image is a multi-stage Node.js build. The editor image builds the Vite SPA in a Node.js stage and serves the static output with nginx on port 8080, with SPA fallback routing.
 
 The `@engine/nova-deploy` package uses `@wandelbots/nova-api` to manage cell apps via the NOVA API and provides two entry points:
 
-- **`install-apps`** (`node dist/install.js`) — Production mode. Runs inside a NOVA cell app container. Reads `NOVA_API`, `CELL_NAME`, `NATS_BROKER`, and `VERSION` from the environment, installs the backend and editor apps via `ApplicationApi.addApp()`, and stays alive.
+- **`install-apps`** (`node dist/install.js`) — Production mode. Runs inside a NOVA cell app container. Reads `NOVA_API`, `CELL_NAME`, `NATS_BROKER`, `BACKEND_IMAGE`, `EDITOR_IMAGE`, and `WORKER_IMAGES` (comma-delimited image URLs) from the environment, installs the backend, editor, and worker apps via `ApplicationApi.addApp()`, and stays alive.
 - **`dev`** (`node dist/dev.js`) — Development mode. Runs locally. Builds TypeScript, builds and pushes Docker images with `:dev` tags, then deletes and reinstalls the apps in a NOVA cell. Supports `--skip-build`, `--backend-only`, and `--editor-only` flags.
 
 ## Versioning & Release
