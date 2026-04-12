@@ -3,37 +3,35 @@ import {
   ApplicationApi,
   Configuration,
 } from "@wandelbots/nova-api/v2";
+import assert from "node:assert";
 import { isAxiosError } from "axios";
 import { backendApp, editorApp } from "./apps.js";
 
-const novaApi = `http://${process.env.NOVA_API}`;
+const novaApi = process.env.NOVA_API;
 const cellName = process.env.CELL_NAME;
 const natsBroker = process.env.NATS_BROKER;
-
-if (!novaApi)
-  throw new Error("NOVA_API is not set — must run inside a NOVA cell app");
-if (!cellName)
-  throw new Error("CELL_NAME is not set — must run inside a NOVA cell app");
-if (!natsBroker)
-  throw new Error("NATS_BROKER is not set — must run inside a NOVA cell app");
-
-const NOVA_API_URL = novaApi;
-const CELL = cellName;
-const NATS = natsBroker;
-
 const backendImage = process.env.BACKEND_IMAGE;
 const editorImage = process.env.EDITOR_IMAGE;
 
-if (!backendImage) throw new Error("BACKEND_IMAGE is not set");
-if (!editorImage) throw new Error("EDITOR_IMAGE is not set");
+assert(novaApi, "NOVA_API is not set");
+assert(cellName, "CELL_NAME is not set");
+assert(natsBroker, "NATS_BROKER is not set");
+assert(backendImage, "BACKEND_IMAGE is not set");
+assert(editorImage, "EDITOR_IMAGE is not set");
 
-const config = new Configuration({ basePath: `${NOVA_API_URL}/api/v2` });
+const config = new Configuration({ basePath: `http://${novaApi}/api/v2` });
 const api = new ApplicationApi(config);
+const natsBrokerUrl = new URL(natsBroker);
+const natsUser = natsBrokerUrl.username;
+const natsPass = natsBrokerUrl.password;
+natsBrokerUrl.username = "";
+natsBrokerUrl.password = "";
+const natsUrl = natsBrokerUrl.toString();
 
-async function installApp(app: App) {
-  console.log(`Installing app '${app.name}' into cell '${CELL}'...`);
+async function installApp(cell: string, app: App) {
+  console.log(`Installing app '${app.name}' into cell '${cell}'...`);
   try {
-    await api.addApp(CELL, app);
+    await api.addApp(cell, app);
     console.log(`  -> '${app.name}' installed`);
   } catch (err) {
     if (isAxiosError(err) && err.response?.status === 409) {
@@ -44,13 +42,15 @@ async function installApp(app: App) {
   }
 }
 
-await installApp(backendApp(backendImage, NATS, CELL));
+await installApp(
+  cellName,
+  backendApp(backendImage, cellName, natsUrl, natsUser, natsPass),
+);
 
-await installApp(editorApp(editorImage, "/api/nats", CELL));
+await installApp(cellName, editorApp(editorImage, cellName, "/api/nats"));
 
 console.log("\nAll apps installed. component-engine-nova done.");
 
-// Keep the container alive so NOVA does not restart it.
 while (true) {
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }

@@ -2,22 +2,17 @@ import type { App } from "@wandelbots/nova-api/v2";
 
 export function backendApp(
   image: string,
-  natsBroker: string,
   cellName: string,
+  natsUrl: string,
+  natsUser?: string,
+  natsPass?: string,
 ): App {
-  const url = new URL(natsBroker);
-  const user = url.username;
-  const pass = url.password;
-  url.username = "";
-  url.password = "";
-  const natsUrl = url.toString();
-
   const env = [
     { name: "NATS_URL", value: natsUrl },
     { name: "BASE_PATH", value: `/${cellName}/component-engine-backend` },
   ];
-  if (user) env.push({ name: "NATS_USER", value: user });
-  if (pass) env.push({ name: "NATS_PASS", value: pass });
+  if (natsUser) env.push({ name: "NATS_USER", value: natsUser });
+  if (natsPass) env.push({ name: "NATS_PASS", value: natsPass });
 
   return {
     name: "component-engine-backend",
@@ -30,8 +25,8 @@ export function backendApp(
 
 export function editorApp(
   image: string,
-  natsUrl: string,
   cellName: string,
+  natsUrl: string,
 ): App {
   return {
     name: "component-engine-editor",
