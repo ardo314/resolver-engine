@@ -6,9 +6,12 @@ import {
   useEffect,
   useRef,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { connect } from "nats";
 import { World, Entity, type RegisteredComponent } from "@engine/client";
+import type DockLayout from "rc-dock";
+import type { TabData } from "rc-dock";
 
 export type PanelId = "entities" | "inspector" | "components";
 
@@ -35,11 +38,15 @@ export interface PropertyEntry {
 
 interface EditorState {
   connected: boolean;
-  panels: Record<PanelId, boolean>;
+  dockLayoutRef: RefObject<DockLayout | null>;
+  loadTabRef: RefObject<((tab: TabData) => TabData) | null>;
+  layoutVersion: number;
   entities: EntityEntry[];
   registeredComponents: RegisteredComponent[];
   selectedEntityId: string | null;
+  isPanelOpen: (id: PanelId) => boolean;
   togglePanel: (id: PanelId) => void;
+  onDockLayoutChange: () => void;
   selectEntity: (id: string | null) => void;
   createEntity: () => Promise<void>;
   deleteEntity: (id: string) => Promise<void>;
@@ -50,12 +57,10 @@ const EditorContext = createContext<EditorState | null>(null);
 
 export function EditorProvider({ children }: { children: ReactNode }) {
   const worldRef = useRef<World | null>(null);
+  const dockLayoutRef = useRef<DockLayout | null>(null);
+  const loadTabRef = useRef<((tab: TabData) => TabData) | null>(null);
   const [connected, setConnected] = useState(false);
-  const [panels, setPanels] = useState<Record<PanelId, boolean>>({
-    entities: true,
-    inspector: true,
-    components: true,
-  });
+  const [layoutVersion, setLayoutVersion] = useState(0);
   const [entities, setEntities] = useState<EntityEntry[]>([]);
   const [registeredComponents, setRegisteredComponents] = useState<RegisteredComponent[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
@@ -113,8 +118,27 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchEntities, fetchComponents]);
 
+  const isPanelOpen = useCallback(
+    (id: PanelId) => !!dockLayoutRef.current?.find(id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layoutVersion],
+  );
+
   const togglePanel = useCallback((id: PanelId) => {
-    setPanels((prev) => ({ ...prev, [id]: !prev[id] }));
+    const dock = dockLayoutRef.current;
+    if (!dock) return;
+    const existing = dock.find(id);
+    if (existing) {
+      dock.dockMove(existing as Parameters<DockLayout["dockMove"]>[0], null, "remove");
+    } else {
+      const tab = loadTabRef.current?.({ id } as TabData) ?? ({ id } as TabData);
+      dock.dockMove(tab as Parameters<DockLayout["dockMove"]>[0], null, "float");
+    }
+    setLayoutVersion((v) => v + 1);
+  }, []);
+
+  const onDockLayoutChange = useCallback(() => {
+    setLayoutVersion((v) => v + 1);
   }, []);
 
   const selectEntity = useCallback((id: string | null) => {
@@ -145,11 +169,15 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     <EditorContext
       value={{
         connected,
-        panels,
+        dockLayoutRef,
+        loadTabRef,
+        layoutVersion,
         entities,
         registeredComponents,
         selectedEntityId,
+        isPanelOpen,
         togglePanel,
+        onDockLayoutChange,
         selectEntity,
         createEntity: createEntityFn,
         deleteEntity: deleteEntityFn,

@@ -6,7 +6,7 @@ import {
 } from "../hooks/useEditorState";
 
 export function TopBar() {
-  const { panels, togglePanel } = useEditor();
+  const { isPanelOpen, togglePanel } = useEditor();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +43,7 @@ export function TopBar() {
                       setMenuOpen(false);
                     }}
                   >
-                    <span className="check">{panels[id] ? "✓" : ""}</span>
+                    <span className="check">{isPanelOpen(id) ? "✓" : ""}</span>
                     {PANEL_LABELS[id]}
                   </button>
                 </li>

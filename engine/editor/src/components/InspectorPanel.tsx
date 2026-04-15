@@ -6,7 +6,7 @@ export function InspectorPanel() {
   const entity = entities.find((e) => e.id === selectedEntityId);
 
   return (
-    <Panel id="inspector" title="Inspector">
+    <Panel>
       {!entity ? (
         <div className="inspector-empty">No entity selected</div>
       ) : (

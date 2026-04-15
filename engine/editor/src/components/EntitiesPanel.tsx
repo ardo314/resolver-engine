@@ -6,7 +6,7 @@ export function EntitiesPanel() {
     useEditor();
 
   return (
-    <Panel id="entities" title="Entities">
+    <Panel>
       <div className="entity-toolbar">
         <button className="entity-toolbar-btn" onClick={createEntity} title="Create entity">
           + New

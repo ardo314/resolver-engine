@@ -12,6 +12,7 @@
   "dependencies": {
     "@engine/client": "0.0.1",
     "nats.ws": "^1.30.3",
+    "rc-dock": "^4.0.0-alpha.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

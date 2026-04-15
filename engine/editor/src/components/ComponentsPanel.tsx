@@ -5,7 +5,7 @@ export function ComponentsPanel() {
   const { registeredComponents } = useEditor();
 
   return (
-    <Panel id="components" title="Components">
+    <Panel>
       <ul className="component-reg-list">
         {registeredComponents.map((comp) => (
           <li key={comp.componentId}>
