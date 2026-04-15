@@ -122,11 +122,12 @@ Both are defined in `@engine/core`.
 
 ### Lifecycle Subjects
 
-| Subject                     | Type          | Payload                                    | Description                            |
-| --------------------------- | ------------- | ------------------------------------------ | -------------------------------------- |
-| `engine.component.register` | Request/reply | `{ componentId, compositeIds }` → `{ ok }` | Worker container registers a component |
-| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)         | Backend signals a worker should start  |
-| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)         | Backend signals a worker should stop   |
+| Subject                     | Type          | Payload                                       | Description                            |
+| --------------------------- | ------------- | --------------------------------------------- | -------------------------------------- |
+| `engine.component.register` | Request/reply | `{ componentId, compositeIds }` → `{ ok }`    | Worker container registers a component |
+| `engine.component.list`     | Request/reply | _(empty)_ → `[{ componentId, compositeIds }]` | List all registered components         |
+| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)            | Backend signals a worker should start  |
+| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)            | Backend signals a worker should stop   |
 
 ### Worker Subjects (per-component per-entity)
 

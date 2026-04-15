@@ -18,6 +18,7 @@ export class EntityHandler {
 
   async listen(): Promise<void> {
     this.handleRegisterComponent();
+    this.handleListComponents();
     this.handleCreateEntity();
     this.handleDeleteEntity();
     this.handleHasEntity();
@@ -47,6 +48,21 @@ export class EntityHandler {
           const message = e instanceof Error ? e.message : String(e);
           msg.respond(sc.encode(JSON.stringify({ error: message })));
         }
+      }
+    })();
+  }
+
+  private handleListComponents(): void {
+    const sub = this.nc.subscribe(Subjects.listComponents);
+    (async () => {
+      for await (const msg of sub) {
+        const entries = [...this.components.entries()].map(
+          ([componentId, { compositeIds }]) => ({
+            componentId,
+            compositeIds: compositeIds.map((id) => id as string),
+          }),
+        );
+        msg.respond(sc.encode(JSON.stringify(entries)));
       }
     })();
   }

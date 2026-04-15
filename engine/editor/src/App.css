@@ -29,6 +29,18 @@
 .editor-right {
   overflow-y: auto;
   border-color: var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-left > .panel + .panel {
+  border-top: 1px solid var(--border);
+}
+
+.editor-left > .panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .editor-left {
@@ -353,6 +365,76 @@
 }
 
 .entity-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  list-style: none;
+}
+
+/* ── Components Panel ── */
+.component-reg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.component-reg-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.component-reg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-primary);
+}
+
+.component-reg-header:hover {
+  background: var(--bg-hover);
+}
+
+.component-reg-icon {
+  color: var(--accent);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.component-reg-name {
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.component-reg-composites {
+  padding: 0 12px 8px 30px;
+}
+
+.component-reg-composites-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.component-reg-composite-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.component-reg-composite-item {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  padding: 1px 0;
+}
+
+.component-reg-empty {
   padding: 24px 12px;
   text-align: center;
   color: var(--text-muted);

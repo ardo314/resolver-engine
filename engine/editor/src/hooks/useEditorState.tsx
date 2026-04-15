@@ -8,13 +8,14 @@ import {
   type ReactNode,
 } from "react";
 import { connect } from "nats";
-import { World, Entity } from "@engine/client";
+import { World, Entity, type RegisteredComponent } from "@engine/client";
 
-export type PanelId = "entities" | "inspector";
+export type PanelId = "entities" | "inspector" | "components";
 
 export const PANEL_LABELS: Record<PanelId, string> = {
   entities: "Entities",
   inspector: "Inspector",
+  components: "Components",
 };
 
 export interface EntityEntry {
@@ -36,6 +37,7 @@ interface EditorState {
   connected: boolean;
   panels: Record<PanelId, boolean>;
   entities: EntityEntry[];
+  registeredComponents: RegisteredComponent[];
   selectedEntityId: string | null;
   togglePanel: (id: PanelId) => void;
   selectEntity: (id: string | null) => void;
@@ -52,8 +54,10 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   const [panels, setPanels] = useState<Record<PanelId, boolean>>({
     entities: true,
     inspector: true,
+    components: true,
   });
   const [entities, setEntities] = useState<EntityEntry[]>([]);
+  const [registeredComponents, setRegisteredComponents] = useState<RegisteredComponent[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   const fetchEntities = useCallback(async () => {
@@ -73,6 +77,17 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const fetchComponents = useCallback(async () => {
+    const world = worldRef.current;
+    if (!world) return;
+    try {
+      const components = await world.listComponents();
+      setRegisteredComponents(components);
+    } catch (e) {
+      console.error("Failed to fetch components:", e);
+    }
+  }, []);
+
   useEffect(() => {
     let disposed = false;
     (async () => {
@@ -88,7 +103,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         }
         worldRef.current = new World(nc);
         setConnected(true);
-        await fetchEntities();
+        await Promise.all([fetchEntities(), fetchComponents()]);
       } catch (e) {
         console.error("NATS connection failed:", e);
       }
@@ -96,7 +111,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
     };
-  }, [fetchEntities]);
+  }, [fetchEntities, fetchComponents]);
 
   const togglePanel = useCallback((id: PanelId) => {
     setPanels((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -132,12 +147,15 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         connected,
         panels,
         entities,
+        registeredComponents,
         selectedEntityId,
         togglePanel,
         selectEntity,
         createEntity: createEntityFn,
         deleteEntity: deleteEntityFn,
-        refresh: fetchEntities,
+        refresh: async () => {
+          await Promise.all([fetchEntities(), fetchComponents()]);
+        },
       }}
     >
       {children}

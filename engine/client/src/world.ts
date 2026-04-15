@@ -6,6 +6,11 @@ import { Entity } from "./entity.js";
 
 const sc = StringCodec();
 
+export interface RegisteredComponent {
+  componentId: string;
+  compositeIds: string[];
+}
+
 export class World {
   constructor(private readonly nc: NatsConnection) {}
 
@@ -30,5 +35,10 @@ export class World {
     const reply = await this.nc.request(Subjects.listEntities, sc.encode(""));
     const ids = JSON.parse(sc.decode(reply.data)) as string[];
     return ids.map((id) => new Entity(this.nc, id as EntityId));
+  }
+
+  async listComponents(): Promise<RegisteredComponent[]> {
+    const reply = await this.nc.request(Subjects.listComponents, sc.encode(""));
+    return JSON.parse(sc.decode(reply.data)) as RegisteredComponent[];
   }
 }

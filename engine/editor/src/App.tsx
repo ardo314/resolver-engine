@@ -3,10 +3,11 @@ import { EditorProvider, useEditor } from "./hooks/useEditorState";
 import { TopBar } from "./components/TopBar";
 import { EntitiesPanel } from "./components/EntitiesPanel";
 import { InspectorPanel } from "./components/InspectorPanel";
+import { ComponentsPanel } from "./components/ComponentsPanel";
 
 function Layout() {
   const { panels, connected } = useEditor();
-  const hasLeft = panels.entities;
+  const hasLeft = panels.entities || panels.components;
   const hasRight = panels.inspector;
 
   return (
@@ -22,7 +23,8 @@ function Layout() {
       >
         {hasLeft && (
           <aside className="editor-left">
-            <EntitiesPanel />
+            {panels.entities && <EntitiesPanel />}
+            {panels.components && <ComponentsPanel />}
           </aside>
         )}
         <main className="editor-center" />
