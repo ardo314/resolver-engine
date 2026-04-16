@@ -56,4 +56,14 @@ export class World {
     };
     if (result.error) throw new Error(result.error);
   }
+
+  async removeComponentById(
+    entityId: EntityId,
+    componentId: string,
+  ): Promise<void> {
+    await this.nc.request(
+      Subjects.removeComponent,
+      sc.encode(JSON.stringify({ entityId, componentId })),
+    );
+  }
 }

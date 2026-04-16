@@ -4,7 +4,7 @@ import { Panel } from "./Panel";
 import { COMPONENT_DRAG_TYPE } from "./ComponentsPanel";
 
 export function InspectorPanel() {
-  const { entities, selectedEntityId, addComponentToEntity } = useEditor();
+  const { entities, selectedEntityId, addComponentToEntity, removeComponentFromEntity } = useEditor();
   const entity = entities.find((e) => e.id === selectedEntityId);
   const [dragOver, setDragOver] = useState(false);
 
@@ -47,6 +47,16 @@ export function InspectorPanel() {
             <details key={comp.componentId} className="component-section" open>
               <summary className="component-header">
                 {comp.componentId}
+                <button
+                  className="component-remove-btn"
+                  title="Remove component"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    removeComponentFromEntity(entity.id, comp.componentId);
+                  }}
+                >
+                  ×
+                </button>
               </summary>
               <div className="property-list">
                 {comp.properties.map((prop) => (
