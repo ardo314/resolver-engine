@@ -41,4 +41,19 @@ export class World {
     const reply = await this.nc.request(Subjects.listComponents, sc.encode(""));
     return JSON.parse(sc.decode(reply.data)) as RegisteredComponent[];
   }
+
+  async addComponentById(
+    entityId: EntityId,
+    componentId: string,
+  ): Promise<void> {
+    const reply = await this.nc.request(
+      Subjects.addComponent,
+      sc.encode(JSON.stringify({ entityId, componentId })),
+    );
+    const result = JSON.parse(sc.decode(reply.data)) as {
+      ok?: boolean;
+      error?: string;
+    };
+    if (result.error) throw new Error(result.error);
+  }
 }

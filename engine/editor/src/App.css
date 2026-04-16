@@ -423,3 +423,31 @@
   font-size: 13px;
   list-style: none;
 }
+
+/* ── Drag & Drop ── */
+.component-reg-list > li[draggable="true"] {
+  cursor: grab;
+}
+
+.component-reg-list > li[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.entity-item.drag-over {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.inspector-drop-zone {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.inspector-drop-zone.drag-over {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: rgba(96, 165, 250, 0.06);
+}

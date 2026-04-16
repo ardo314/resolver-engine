@@ -1,6 +1,8 @@
 import { useEditor } from "../hooks/useEditorState";
 import { Panel } from "./Panel";
 
+export const COMPONENT_DRAG_TYPE = "application/x-component-id";
+
 export function ComponentsPanel() {
   const { registeredComponents } = useEditor();
 
@@ -8,7 +10,14 @@ export function ComponentsPanel() {
     <Panel>
       <ul className="component-reg-list">
         {registeredComponents.map((comp) => (
-          <li key={comp.componentId}>
+          <li
+            key={comp.componentId}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData(COMPONENT_DRAG_TYPE, comp.componentId);
+              e.dataTransfer.effectAllowed = "copy";
+            }}
+          >
             <details className="component-reg-section" open>
               <summary className="component-reg-header">
                 <span className="component-reg-icon">⬡</span>

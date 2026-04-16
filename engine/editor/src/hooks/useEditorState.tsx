@@ -50,6 +50,7 @@ interface EditorState {
   selectEntity: (id: string | null) => void;
   createEntity: () => Promise<void>;
   deleteEntity: (id: string) => Promise<void>;
+  addComponentToEntity: (entityId: string, componentId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -165,6 +166,16 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     [fetchEntities, selectedEntityId],
   );
 
+  const addComponentToEntityFn = useCallback(
+    async (entityId: string, componentId: string) => {
+      const world = worldRef.current;
+      if (!world) return;
+      await world.addComponentById(entityId as Entity["id"], componentId);
+      await fetchEntities();
+    },
+    [fetchEntities],
+  );
+
   return (
     <EditorContext
       value={{
@@ -181,6 +192,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         selectEntity,
         createEntity: createEntityFn,
         deleteEntity: deleteEntityFn,
+        addComponentToEntity: addComponentToEntityFn,
         refresh: async () => {
           await Promise.all([fetchEntities(), fetchComponents()]);
         },
