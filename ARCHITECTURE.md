@@ -98,6 +98,19 @@ Worker classes are registered with the `WorkerHost` at container startup. When t
 
 Zod schemas serve as the single source of truth for both TypeScript types (via `z.infer`) and runtime validation.
 
+### Component Schema Registration
+
+When workers register components with the backend, they include a `ComponentSchema` — a JSON-serializable representation of the component's full definition (own + composite properties and methods). Property and method schemas are converted from Zod types to JSON Schema using Zod v4's built-in `toJSONSchema()`. The `ComponentSchema` type is defined in `@engine/core`:
+
+```typescript
+interface ComponentSchema {
+  properties: Record<string, JSONSchema>; // property name → JSON Schema
+  methods: Record<string, { input?: JSONSchema; output?: JSONSchema }>;
+}
+```
+
+The backend stores the schema alongside structural component data. Clients can retrieve schemas via `listComponents` and use property names from the schema when querying entities for current property values via `WorkerSubjects`.
+
 ## Transport
 
 Communication uses [NATS](https://nats.io/) request/reply and publish/subscribe with three subject namespaces:
@@ -109,25 +122,25 @@ Both are defined in `@engine/core`.
 
 ### Backend Subjects (structural)
 
-| Subject                         | Payload (request)                  | Payload (reply)                            |
-| ------------------------------- | ---------------------------------- | ------------------------------------------ |
-| `engine.world.createEntity`     | _(empty)_                          | `EntityId`                                 |
-| `engine.world.deleteEntity`     | `EntityId`                         | `"true"/"false"`                           |
-| `engine.world.hasEntity`        | `EntityId`                         | `"true"/"false"`                           |
-| `engine.world.listEntities`     | _(empty)_                          | `EntityId[]` (JSON)                        |
-| `engine.entity.addComponent`    | `{ entityId, componentId }` (JSON) | `{ ok }` or `{ error }`                    |
-| `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON) | `"true"/"false"`                           |
-| `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON) | `"true"/"false"`                           |
-| `engine.entity.getComponents`   | `EntityId`                         | `[{ componentId }]` (JSON, structure only) |
+| Subject                         | Payload (request)                  | Payload (reply)                           |
+| ------------------------------- | ---------------------------------- | ----------------------------------------- |
+| `engine.world.createEntity`     | _(empty)_                          | `EntityId`                                |
+| `engine.world.deleteEntity`     | `EntityId`                         | `"true"/"false"`                          |
+| `engine.world.hasEntity`        | `EntityId`                         | `"true"/"false"`                          |
+| `engine.world.listEntities`     | _(empty)_                          | `EntityId[]` (JSON)                       |
+| `engine.entity.addComponent`    | `{ entityId, componentId }` (JSON) | `{ ok }` or `{ error }`                   |
+| `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON) | `"true"/"false"`                          |
+| `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON) | `"true"/"false"`                          |
+| `engine.entity.getComponents`   | `EntityId`                         | `[{ componentId, propertyNames }]` (JSON) |
 
 ### Lifecycle Subjects
 
-| Subject                     | Type          | Payload                                       | Description                            |
-| --------------------------- | ------------- | --------------------------------------------- | -------------------------------------- |
-| `engine.component.register` | Request/reply | `{ componentId, compositeIds }` → `{ ok }`    | Worker container registers a component |
-| `engine.component.list`     | Request/reply | _(empty)_ → `[{ componentId, compositeIds }]` | List all registered components         |
-| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)            | Backend signals a worker should start  |
-| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)            | Backend signals a worker should stop   |
+| Subject                     | Type          | Payload                                               | Description                                            |
+| --------------------------- | ------------- | ----------------------------------------------------- | ------------------------------------------------------ |
+| `engine.component.register` | Request/reply | `{ componentId, compositeIds, schema }` → `{ ok }`    | Worker container registers a component with its schema |
+| `engine.component.list`     | Request/reply | _(empty)_ → `[{ componentId, compositeIds, schema }]` | List all registered components with schemas            |
+| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)                    | Backend signals a worker should start                  |
+| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)                    | Backend signals a worker should stop                   |
 
 ### Worker Subjects (per-component per-entity)
 

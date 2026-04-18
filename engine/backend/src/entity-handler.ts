@@ -1,6 +1,6 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
-import type { EntityId, ComponentId } from "@engine/core";
+import type { EntityId, ComponentId, ComponentSchema } from "@engine/core";
 import { Subjects } from "@engine/core";
 import { EntityRepository } from "./entity-repository.js";
 
@@ -8,6 +8,7 @@ const sc = StringCodec();
 
 interface RegisteredComponent {
   readonly compositeIds: ComponentId[];
+  readonly schema: ComponentSchema;
 }
 
 export class EntityHandler {
@@ -34,14 +35,16 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { componentId, compositeIds } = JSON.parse(
+          const { componentId, compositeIds, schema } = JSON.parse(
             sc.decode(msg.data),
           ) as {
             componentId: string;
             compositeIds: string[];
+            schema: ComponentSchema;
           };
           this.components.set(componentId, {
             compositeIds: compositeIds as ComponentId[],
+            schema,
           });
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
         } catch (e) {
@@ -57,9 +60,10 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         const entries = [...this.components.entries()].map(
-          ([componentId, { compositeIds }]) => ({
+          ([componentId, { compositeIds, schema }]) => ({
             componentId,
             compositeIds: compositeIds.map((id) => id as string),
+            schema,
           }),
         );
         msg.respond(sc.encode(JSON.stringify(entries)));
@@ -216,7 +220,15 @@ export class EntityHandler {
           msg.respond(
             sc.encode(
               JSON.stringify(
-                componentIds.map((id) => ({ componentId: id as string })),
+                componentIds.map((id) => {
+                  const registered = this.components.get(id as string);
+                  return {
+                    componentId: id as string,
+                    propertyNames: registered
+                      ? Object.keys(registered.schema.properties)
+                      : [],
+                  };
+                }),
               ),
             ),
           );

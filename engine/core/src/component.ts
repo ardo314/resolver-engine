@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { type z, toJSONSchema } from "zod";
 
 // --- Branded ID ---
 
@@ -142,6 +142,43 @@ export function getAllMethods(
   }
   walk(component);
   return result;
+}
+
+// --- Serializable schema ---
+
+export interface ComponentMethodSchema {
+  readonly input?: Record<string, unknown>;
+  readonly output?: Record<string, unknown>;
+}
+
+export interface ComponentSchema {
+  readonly properties: Record<string, Record<string, unknown>>;
+  readonly methods: Record<string, ComponentMethodSchema>;
+}
+
+/** Convert a Component's full definition (own + composites) to a JSON-serializable schema. */
+export function toComponentSchema(component: Component): ComponentSchema {
+  const allProps = getAllProperties(component);
+  const allMethodDefs = getAllMethods(component);
+
+  const properties: Record<string, Record<string, unknown>> = {};
+  for (const [name, zodSchema] of Object.entries(allProps)) {
+    properties[name] = toJSONSchema(zodSchema) as Record<string, unknown>;
+  }
+
+  const methods: Record<string, ComponentMethodSchema> = {};
+  for (const [name, def] of Object.entries(allMethodDefs)) {
+    methods[name] = {
+      input: def.input
+        ? (toJSONSchema(def.input) as Record<string, unknown>)
+        : undefined,
+      output: def.output
+        ? (toJSONSchema(def.output) as Record<string, unknown>)
+        : undefined,
+    };
+  }
+
+  return { properties, methods };
 }
 
 // --- Type inference ---

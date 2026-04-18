@@ -136,6 +136,7 @@ export class Entity {
     );
     const structural = JSON.parse(sc.decode(reply.data)) as {
       componentId: string;
+      propertyNames: string[];
     }[];
 
     const result: {
@@ -143,8 +144,28 @@ export class Entity {
       properties: { name: string; value: string }[];
     }[] = [];
 
-    for (const { componentId } of structural) {
-      result.push({ componentId, properties: [] });
+    for (const { componentId, propertyNames } of structural) {
+      const properties: { name: string; value: string }[] = [];
+      for (const name of propertyNames) {
+        try {
+          const propReply = await this.nc.request(
+            WorkerSubjects.getProperty(componentId, this.id as string, name),
+          );
+          const propResult = JSON.parse(sc.decode(propReply.data)) as {
+            value?: unknown;
+            error?: string;
+          };
+          properties.push({
+            name,
+            value: propResult.error
+              ? `<error: ${propResult.error}>`
+              : JSON.stringify(propResult.value),
+          });
+        } catch {
+          properties.push({ name, value: "<unavailable>" });
+        }
+      }
+      result.push({ componentId, properties });
     }
     return result;
   }

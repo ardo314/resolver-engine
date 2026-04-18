@@ -5,6 +5,7 @@ export {
   getAllComposites,
   getAllProperties,
   getAllMethods,
+  toComponentSchema,
 } from "./component.js";
 export type {
   Component,
@@ -13,6 +14,8 @@ export type {
   ComponentPropertyDefinition,
   ComponentMethodDefinition,
   ComponentReference,
+  ComponentSchema,
+  ComponentMethodSchema,
   InferComponentProperties,
   InferComponentMethod,
   InferComponentMethods,
