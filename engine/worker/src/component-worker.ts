@@ -15,6 +15,9 @@ import {
   getAllMethods,
 } from "@engine/core";
 
+// --- Symbol.metadata polyfill (needed for TC39 decorators) ---
+(Symbol as any).metadata ??= Symbol("Symbol.metadata");
+
 // --- Metadata keys ---
 
 const COMPONENT_KEY = "__worker_component__";

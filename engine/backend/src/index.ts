@@ -12,3 +12,12 @@ const handler = new EntityHandler(nc);
 await handler.listen();
 
 console.log("Backend listening on NATS");
+
+const shutdown = async () => {
+  console.log("Draining NATS connection...");
+  await nc.drain();
+};
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+
+await nc.closed();

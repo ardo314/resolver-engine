@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useEditor } from "../hooks/useEditorState";
 import { Panel } from "./Panel";
+import { COMPONENT_DRAG_TYPE } from "./ComponentsPanel";
 
 export function EntitiesPanel() {
-  const { entities, selectedEntityId, selectEntity, createEntity, deleteEntity } =
+  const { entities, selectedEntityId, selectEntity, createEntity, deleteEntity, addComponentToEntity } =
     useEditor();
+  const [dragOverEntityId, setDragOverEntityId] = useState<string | null>(null);
 
   return (
-    <Panel id="entities" title="Entities">
+    <Panel>
       <div className="entity-toolbar">
         <button className="entity-toolbar-btn" onClick={createEntity} title="Create entity">
           + New
@@ -39,12 +42,28 @@ export function EntitiesPanel() {
           return (
             <li key={entity.id}>
               <button
-                className={`entity-item${selectedEntityId === entity.id ? " selected" : ""}`}
+                className={`entity-item${selectedEntityId === entity.id ? " selected" : ""}${dragOverEntityId === entity.id ? " drag-over" : ""}`}
                 onClick={() =>
                   selectEntity(
                     selectedEntityId === entity.id ? null : entity.id,
                   )
                 }
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes(COMPONENT_DRAG_TYPE)) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                    setDragOverEntityId(entity.id);
+                  }
+                }}
+                onDragLeave={() => setDragOverEntityId(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverEntityId(null);
+                  const componentId = e.dataTransfer.getData(COMPONENT_DRAG_TYPE);
+                  if (componentId) {
+                    addComponentToEntity(entity.id, componentId);
+                  }
+                }}
               >
                 <span className="entity-icon">◆</span>
                 <span className="entity-name">{displayName}</span>

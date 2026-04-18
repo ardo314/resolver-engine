@@ -8,6 +8,7 @@ export const Subjects = {
   hasComponent: "engine.entity.hasComponent",
   getComponents: "engine.entity.getComponents",
   registerComponent: "engine.component.register",
+  listComponents: "engine.component.list",
   startWorker: "engine.worker.start",
   stopWorker: "engine.worker.stop",
 } as const;

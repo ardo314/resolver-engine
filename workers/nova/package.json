@@ -16,5 +16,8 @@
     "@engine/core": "0.0.1",
     "@engine/worker": "0.0.1",
     "nats": "^2.29.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
   }
 }

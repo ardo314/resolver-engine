@@ -6,6 +6,9 @@ import babel from "@rolldown/plugin-babel";
 export default defineConfig({
   base: "./",
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+  server: {
+    allowedHosts: true,
+  },
   resolve: {
     alias: {
       nats: "nats.ws",

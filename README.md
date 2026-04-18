@@ -10,6 +10,21 @@ explicit written permission from the author.
 
 See the [LICENSE](LICENSE) file for details.
 
+## Running Locally
+
+Start each service in a separate terminal inside the devcontainer:
+
+```bash
+npm run build                              # compile TypeScript (or npm run watch)
+nats-server -c nats.conf                   # start NATS
+node engine/backend/dist/index.js          # start backend
+node workers/in-memory/dist/index.js       # start in-memory worker host
+cd engine/editor && npm run dev -- --host  # start Vite dev server
+```
+
+The editor is available at <http://localhost:5173>.
+NATS monitoring is available at <http://localhost:8222>.
+
 ## Building & Pushing Images
 
 Images are built with [Skaffold](https://skaffold.dev). The configuration

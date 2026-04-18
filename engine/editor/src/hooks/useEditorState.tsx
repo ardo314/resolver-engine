@@ -6,15 +6,19 @@ import {
   useEffect,
   useRef,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { connect } from "nats";
-import { World, Entity } from "@engine/client";
+import { World, Entity, type RegisteredComponent } from "@engine/client";
+import type DockLayout from "rc-dock";
+import type { TabData } from "rc-dock";
 
-export type PanelId = "entities" | "inspector";
+export type PanelId = "entities" | "inspector" | "components";
 
 export const PANEL_LABELS: Record<PanelId, string> = {
   entities: "Entities",
   inspector: "Inspector",
+  components: "Components",
 };
 
 export interface EntityEntry {
@@ -34,13 +38,20 @@ export interface PropertyEntry {
 
 interface EditorState {
   connected: boolean;
-  panels: Record<PanelId, boolean>;
+  dockLayoutRef: RefObject<DockLayout | null>;
+  loadTabRef: RefObject<((tab: TabData) => TabData) | null>;
+  layoutVersion: number;
   entities: EntityEntry[];
+  registeredComponents: RegisteredComponent[];
   selectedEntityId: string | null;
+  isPanelOpen: (id: PanelId) => boolean;
   togglePanel: (id: PanelId) => void;
+  onDockLayoutChange: () => void;
   selectEntity: (id: string | null) => void;
   createEntity: () => Promise<void>;
   deleteEntity: (id: string) => Promise<void>;
+  addComponentToEntity: (entityId: string, componentId: string) => Promise<void>;
+  removeComponentFromEntity: (entityId: string, componentId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -48,12 +59,12 @@ const EditorContext = createContext<EditorState | null>(null);
 
 export function EditorProvider({ children }: { children: ReactNode }) {
   const worldRef = useRef<World | null>(null);
+  const dockLayoutRef = useRef<DockLayout | null>(null);
+  const loadTabRef = useRef<((tab: TabData) => TabData) | null>(null);
   const [connected, setConnected] = useState(false);
-  const [panels, setPanels] = useState<Record<PanelId, boolean>>({
-    entities: true,
-    inspector: true,
-  });
+  const [layoutVersion, setLayoutVersion] = useState(0);
   const [entities, setEntities] = useState<EntityEntry[]>([]);
+  const [registeredComponents, setRegisteredComponents] = useState<RegisteredComponent[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   const fetchEntities = useCallback(async () => {
@@ -73,6 +84,17 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const fetchComponents = useCallback(async () => {
+    const world = worldRef.current;
+    if (!world) return;
+    try {
+      const components = await world.listComponents();
+      setRegisteredComponents(components);
+    } catch (e) {
+      console.error("Failed to fetch components:", e);
+    }
+  }, []);
+
   useEffect(() => {
     let disposed = false;
     (async () => {
@@ -88,7 +110,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
         }
         worldRef.current = new World(nc);
         setConnected(true);
-        await fetchEntities();
+        await Promise.all([fetchEntities(), fetchComponents()]);
       } catch (e) {
         console.error("NATS connection failed:", e);
       }
@@ -96,10 +118,29 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
     };
-  }, [fetchEntities]);
+  }, [fetchEntities, fetchComponents]);
+
+  const isPanelOpen = useCallback(
+    (id: PanelId) => !!dockLayoutRef.current?.find(id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layoutVersion],
+  );
 
   const togglePanel = useCallback((id: PanelId) => {
-    setPanels((prev) => ({ ...prev, [id]: !prev[id] }));
+    const dock = dockLayoutRef.current;
+    if (!dock) return;
+    const existing = dock.find(id);
+    if (existing) {
+      dock.dockMove(existing as Parameters<DockLayout["dockMove"]>[0], null, "remove");
+    } else {
+      const tab = loadTabRef.current?.({ id } as TabData) ?? ({ id } as TabData);
+      dock.dockMove(tab as Parameters<DockLayout["dockMove"]>[0], null, "float");
+    }
+    setLayoutVersion((v) => v + 1);
+  }, []);
+
+  const onDockLayoutChange = useCallback(() => {
+    setLayoutVersion((v) => v + 1);
   }, []);
 
   const selectEntity = useCallback((id: string | null) => {
@@ -126,18 +167,47 @@ export function EditorProvider({ children }: { children: ReactNode }) {
     [fetchEntities, selectedEntityId],
   );
 
+  const addComponentToEntityFn = useCallback(
+    async (entityId: string, componentId: string) => {
+      const world = worldRef.current;
+      if (!world) return;
+      await world.addComponentById(entityId as Entity["id"], componentId);
+      await fetchEntities();
+    },
+    [fetchEntities],
+  );
+
+  const removeComponentFromEntityFn = useCallback(
+    async (entityId: string, componentId: string) => {
+      const world = worldRef.current;
+      if (!world) return;
+      await world.removeComponentById(entityId as Entity["id"], componentId);
+      await fetchEntities();
+    },
+    [fetchEntities],
+  );
+
   return (
     <EditorContext
       value={{
         connected,
-        panels,
+        dockLayoutRef,
+        loadTabRef,
+        layoutVersion,
         entities,
+        registeredComponents,
         selectedEntityId,
+        isPanelOpen,
         togglePanel,
+        onDockLayoutChange,
         selectEntity,
         createEntity: createEntityFn,
         deleteEntity: deleteEntityFn,
-        refresh: fetchEntities,
+        addComponentToEntity: addComponentToEntityFn,
+        removeComponentFromEntity: removeComponentFromEntityFn,
+        refresh: async () => {
+          await Promise.all([fetchEntities(), fetchComponents()]);
+        },
       }}
     >
       {children}

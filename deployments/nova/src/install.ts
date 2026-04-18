@@ -5,7 +5,7 @@ import {
 } from "@wandelbots/nova-api/v2";
 import assert from "node:assert";
 import { isAxiosError } from "axios";
-import { backendApp, editorApp } from "./apps.js";
+import { backendApp, editorApp, workerApp } from "./apps.js";
 
 const novaApi = process.env.NOVA_API;
 const cellName = process.env.CELL_NAME;
@@ -48,6 +48,16 @@ await installApp(
 );
 
 await installApp(cellName, editorApp(editorImage, cellName, "/api/nats"));
+
+for (let i = 0; ; i++) {
+  const image = process.env[`WORKER_IMAGE_${i}`];
+  if (!image) break;
+  const name = image.split("/").pop()!.split(":")[0];
+  await installApp(
+    cellName,
+    workerApp(name, image, natsUrl, natsUser, natsPass),
+  );
+}
 
 console.log("\nAll apps installed. component-engine-nova done.");
 
