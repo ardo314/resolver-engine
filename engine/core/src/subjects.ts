@@ -7,6 +7,7 @@ export const Subjects = {
   removeComponent: "engine.entity.removeComponent",
   hasComponent: "engine.entity.hasComponent",
   getComponents: "engine.entity.getComponents",
+  queryEntity: "engine.entity.query",
   registerComponent: "engine.component.register",
   listComponents: "engine.component.list",
   startWorker: "engine.worker.start",
@@ -14,10 +15,6 @@ export const Subjects = {
 } as const;
 
 export const WorkerSubjects = {
-  getProperty: (componentId: string, entityId: string, property: string) =>
-    `engine.worker.${componentId}.${entityId}.property.${property}.get`,
-  setProperty: (componentId: string, entityId: string, property: string) =>
-    `engine.worker.${componentId}.${entityId}.property.${property}.set`,
   callMethod: (componentId: string, entityId: string, method: string) =>
     `engine.worker.${componentId}.${entityId}.method.${method}`,
 } as const;

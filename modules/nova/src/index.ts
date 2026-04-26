@@ -1,18 +1,24 @@
 import { defineComponent } from "@engine/core";
 import {
-  poseComponent as corePoseComponent,
-  nameComponent as coreNameComponent,
-  parentComponent as coreParentComponent,
+  getPose,
+  setPose,
+  getName,
+  setName,
+  getParent,
+  setParent,
 } from "@ardo314/core";
 
-export const nameComponent = defineComponent("nova.name", {
-  composites: [coreNameComponent],
-});
+export const nameComponent = defineComponent("nova.name", [
+  getName,
+  setName,
+]);
 
-export const parentComponent = defineComponent("nova.parent", {
-  composites: [coreParentComponent],
-});
+export const parentComponent = defineComponent("nova.parent", [
+  getParent,
+  setParent,
+]);
 
-export const poseComponent = defineComponent("nova.pose", {
-  composites: [corePoseComponent],
-});
+export const poseComponent = defineComponent("nova.pose", [
+  getPose,
+  setPose,
+]);

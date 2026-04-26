@@ -23,15 +23,15 @@ export function ComponentsPanel() {
                 <span className="component-reg-icon">⬡</span>
                 <span className="component-reg-name">{comp.componentId}</span>
               </summary>
-              {comp.compositeIds.length > 0 && (
+              {comp.methodNames.length > 0 && (
                 <div className="component-reg-composites">
                   <span className="component-reg-composites-label">
-                    Composites
+                    Methods
                   </span>
                   <ul className="component-reg-composite-list">
-                    {comp.compositeIds.map((id) => (
-                      <li key={id} className="component-reg-composite-item">
-                        {id}
+                    {comp.methodNames.map((name) => (
+                      <li key={name} className="component-reg-composite-item">
+                        {name}
                       </li>
                     ))}
                   </ul>

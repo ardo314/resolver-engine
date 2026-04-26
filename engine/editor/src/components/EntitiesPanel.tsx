@@ -26,18 +26,7 @@ export function EntitiesPanel() {
       </div>
       <ul className="entity-list">
         {entities.map((entity) => {
-          const nameComp = entity.components.find(
-            (c) => c.componentId === "in-memory.name",
-          );
-          const nameRaw = nameComp?.properties.find(
-            (p) => p.name === "name",
-          )?.value;
-          let displayName: string;
-          try {
-            displayName = nameRaw ? JSON.parse(nameRaw) : entity.id;
-          } catch {
-            displayName = entity.id;
-          }
+          const displayName = entity.id;
 
           return (
             <li key={entity.id}>

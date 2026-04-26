@@ -59,10 +59,9 @@ export function InspectorPanel() {
                 </button>
               </summary>
               <div className="property-list">
-                {comp.properties.map((prop) => (
-                  <div key={prop.name} className="property-row">
-                    <span className="property-name">{prop.name}</span>
-                    <span className="property-value">{prop.value}</span>
+                {comp.methodNames.map((name) => (
+                  <div key={name} className="property-row">
+                    <span className="property-name">{name}</span>
                   </div>
                 ))}
               </div>

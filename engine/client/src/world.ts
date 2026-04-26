@@ -8,7 +8,7 @@ const sc = StringCodec();
 
 export interface RegisteredComponent {
   componentId: string;
-  compositeIds: string[];
+  methodNames: string[];
   schema: ComponentSchema;
 }
 

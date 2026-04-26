@@ -26,13 +26,19 @@ All packages use TypeScript project references and build via `tsc --build`.
 
 A uniquely identifiable runtime object. Identified by an `EntityId` (branded string). Entities are created and managed by the `EntityRepository` on the backend.
 
+### Method
+
+A first-class standalone unit of behaviour, defined via `defineMethod(name, { input?, output? })`. Methods are namespaced (e.g. `"core.getPose"`, `"in-memory.setTarget"`). Each method has:
+
+- **`name`** — A globally unique namespaced string identifier.
+- **`input`** (optional) — A Zod schema describing the method's input type.
+- **`output`** (optional) — A Zod schema describing the method's return type.
+
+Methods carry a `__type: "method"` tag for runtime discrimination. The same `Method` object is reused across multiple component definitions.
+
 ### Component
 
-A first-class data/behaviour unit identified by a `ComponentId` (explicit branded string). Defined via `defineComponent(id, { properties?, methods?, composites? })`.
-
-- **`properties`** — `Record<string, z.ZodType>`. Each key is a property name; each value is a Zod schema describing the property's type.
-- **`methods`** (optional) — `Record<string, { input?: z.ZodType; output?: z.ZodType }>`.
-- **`composites`** (optional) — `readonly Component[]`. Other components that this component is composed of. Composition is recursive: a composite can itself compose other components.
+A component is identified by a `ComponentId` (explicit branded string) and carries a list of methods. Defined via `defineComponent(id, [method1, method2, ...])`.
 
 Components carry a `__type: "component"` tag for runtime discrimination.
 
@@ -40,59 +46,57 @@ Components carry a `__type: "component"` tag for runtime discrimination.
 
 **Constraints:**
 
-- An entity can have at most one instance of a given component (direct or via composition).
-- Adding a component will fail if any of its composites (recursively) are already present on the entity, either as direct components or as composites of another component. This ensures no overlap.
-- Property names must be unique across the entire component tree (own properties + all composite properties, recursively). `defineComponent` throws at definition time if a conflict is detected.
+- An entity can have at most one instance of a given component (by ID).
+- Method names must be unique within a component. `defineComponent` throws at definition time if a duplicate is detected.
 
-`ComponentReference<C>` infers a TypeScript interface from a component's definition, producing typed async get/set properties and typed method signatures. It is the intersection of the component's own properties/methods and all composite `ComponentReference`s.
+`ComponentReference<C>` infers a TypeScript interface from a component's method list, producing typed async method signatures keyed by method name.
 
-### Component Composition & Query by Composite
+### Query & Duck Typing
 
-Components can be composed of other components. For example, a `Transform` component might compose a `Pose` component and add additional properties.
+A `Query` is a list of methods, defined via `defineQuery([method1, method2, ...])`. Queries enable duck-typed matching across the **entire entity**: an entity matches a query if the union of methods across all its components covers every method in the query. Methods may be spread across different components.
 
-When querying with `getComponent(component)`:
+When querying with `entity.query(query)`:
 
-- If the component was added directly, the full reference (own + composite properties) is returned.
-- If the component is a composite of a directly-added component, `hasComponent` returns `true` and a scoped reference containing only that composite's own properties is returned.
+- The backend collects all methods from all components on the entity.
+- If all requested methods are covered, the query matches and returns a `Record<methodName, componentId>` mapping.
+- The client builds a `QueryReference<Q>` proxy where each method call routes to the correct component's NATS subject based on the mapping.
 
-This allows code to query entities by capability without knowing the full composed component definition.
+A component can also be used as a query since it carries a method list.
 
-### Core Components & Module Components
+### Core Methods & Module Components
 
-`@ardo314/core` defines base components that represent fundamental capabilities:
+`@ardo314/core` defines standalone methods representing fundamental capabilities:
 
-- `core.pose` — position (vector) + rotation (quaternion)
-- `core.name` — display name (string)
-- `core.parent` — parent entity reference (EntityId)
+- `core.getPose` / `core.setPose` — position + rotation access
+- `core.getName` / `core.setName` — display name access
+- `core.getParent` / `core.setParent` — parent entity reference access
 
-These core components have no workers of their own. They exist as composites for module-specific components to include.
+Core components (`core.pose`, `core.name`, `core.parent`) bundle these methods but have no workers of their own.
 
-`@ardo314/in-memory` defines implementation-specific components that compose the core ones:
+`@ardo314/in-memory` defines implementation-specific components that reuse the same core methods:
 
-- `in-memory.name` composes `core.name`
-- `in-memory.parent` composes `core.parent`
-- `in-memory.pose` composes `core.pose`
-- `in-memory.follow-pose` defines own `target` property and composes `core.pose`
+- `in-memory.name` uses `[core.getName, core.setName]`
+- `in-memory.parent` uses `[core.getParent, core.setParent]`
+- `in-memory.pose` uses `[core.getPose, core.setPose]`
+- `in-memory.follow-pose` uses `[in-memory.getTarget, in-memory.setTarget, core.getPose, core.setPose]`
 
-Because in-memory components compose their core counterparts, querying an entity for `core.pose` will match any entity that has `in-memory.pose` or `in-memory.follow-pose` (or any other component that composes `core.pose`). Workers implement the in-memory components, not the core components directly.
+Because methods are shared across components, querying an entity with `defineQuery([getPose, setPose, getName])` will match if the entity has `in-memory.pose` (providing `getPose`/`setPose`) and `in-memory.name` (providing `getName`/`setName`). Workers implement the in-memory components.
 
 ### Component Worker
 
 A `ComponentWorker` is a class that implements the runtime behaviour for a component. There is **one worker instance per component on an entity**. Workers are defined using a single decorator:
 
-- **`@Implements(component)`** — Class decorator. Declares which component (defined via `defineComponent`) the worker implements. The single component carries its composites, so the worker implicitly covers everything. The decorator is generic over the component type: if the worker class does not implement all required property accessors and methods, TypeScript reports a compile-time error. The expected shape is captured by the `WorkerImplementation<C>` type.
+- **`@Implements(component)`** — Class decorator. Declares which component the worker implements. The decorator is generic over the component type: if the worker class does not implement all required methods, TypeScript reports a compile-time error. The expected shape is captured by the `WorkerImplementation<C>` type.
 
-The component definition is the single source of truth for which properties and methods a worker exposes. For each component property, the worker class provides a matching field implementing the `ComponentProperty<T>` interface — an object with `get()` and `set(value)` methods (sync or async). For each component method, the worker provides a matching instance method. Property schemas and method signatures come from the component's `defineComponent(...)` call — workers do not redeclare them.
+The component's method list is the single source of truth for which methods a worker must expose. For each method, the worker class provides a matching instance method (using the namespaced method name as the key, e.g. `"core.getPose"`). Method schemas come from the `defineMethod(...)` call — workers do not redeclare them.
 
-Workers extend the abstract `ComponentWorker` base class. At `start()` time, the base class reads `getAllProperties(component)` and `getAllMethods(component)` from the component definition to create per-property and per-method NATS subscriptions automatically. If a worker does not implement the required `get`/`set` accessor for a property, or a required method, `start()` throws immediately (fail-fast).
+Workers extend the abstract `ComponentWorker` base class. At `start()` time, the base class iterates over the component's methods to create per-method NATS subscriptions automatically. If a worker does not implement a required method, `start()` throws immediately (fail-fast).
 
-**Worker lifecycle:** Workers run in separate containers (e.g. in Kubernetes), not inside the backend. Each worker module runs in its own container using a `WorkerHost`. On startup, the `WorkerHost` registers its components with the backend via `Subjects.registerComponent` (request/reply). It then subscribes to `Subjects.startWorker` and `Subjects.stopWorker` (fire-and-forget publishes from the backend). When `startWorker` arrives with a matching `componentId`, the host instantiates the worker and calls `start(nc, entityId)`. When `stopWorker` arrives, it calls `stop()` and removes the instance.
+**Worker lifecycle:** Workers run in separate containers (e.g. in Kubernetes), not inside the backend. Each worker module runs in its own container using a `WorkerHost`. On startup, the `WorkerHost` registers its components with the backend via `Subjects.registerComponent` (request/reply), sending the component's method names and schema. It then subscribes to `Subjects.startWorker` and `Subjects.stopWorker` (fire-and-forget publishes from the backend). When `startWorker` arrives with a matching `componentId`, the host instantiates the worker and calls `start(nc, entityId)`. When `stopWorker` arrives, it calls `stop()` and removes the instance.
 
-Within a single worker instance, `start()` subscribes to per-property `get`/`set` subjects and per-method subjects for the component and all its composites. `stop()` unsubscribes. Each property and method is identified by its name, its component, and its entity.
+Within a single worker instance, `start()` subscribes to per-method subjects for the component. `stop()` unsubscribes. Each method is identified by its name, its component, and its entity.
 
-**Independence from backend:** Workers operate independently of the backend. The backend only tracks which entities have which components (structural data) and publishes lifecycle events. It does not relay or control worker subscriptions, property messages, or method messages. Clients communicate with workers directly via `WorkerSubjects`.
-
-Worker classes are registered with the `WorkerHost` at container startup. When the backend adds a component, it records the structure, publishes a `startWorker` event, and the appropriate worker container handles it. When removed or when an entity is deleted, the backend publishes `stopWorker` events. A composed component is implemented by a single worker that covers all properties (own + composites).
+**Independence from backend:** Workers operate independently of the backend. The backend only tracks which entities have which components (structural data) and publishes lifecycle events. It does not relay or control worker subscriptions or method messages. Clients communicate with workers directly via `WorkerSubjects`.
 
 ## Serialization
 
@@ -100,57 +104,55 @@ Zod schemas serve as the single source of truth for both TypeScript types (via `
 
 ### Component Schema Registration
 
-When workers register components with the backend, they include a `ComponentSchema` — a JSON-serializable representation of the component's full definition (own + composite properties and methods). Property and method schemas are converted from Zod types to JSON Schema using Zod v4's built-in `toJSONSchema()`. The `ComponentSchema` type is defined in `@engine/core`:
+When workers register components with the backend, they include a `ComponentSchema` — a JSON-serializable representation of the component's methods. Method schemas are converted from Zod types to JSON Schema using Zod v4's built-in `toJSONSchema()`. The `ComponentSchema` type is defined in `@engine/core`:
 
 ```typescript
 interface ComponentSchema {
-  properties: Record<string, JSONSchema>; // property name → JSON Schema
   methods: Record<string, { input?: JSONSchema; output?: JSONSchema }>;
 }
 ```
 
-The backend stores the schema alongside structural component data. Clients can retrieve schemas via `listComponents` and use property names from the schema when querying entities for current property values via `WorkerSubjects`.
+The backend stores the schema alongside structural component data. Clients can retrieve schemas via `listComponents` and use method names from the schema when interacting with entities.
 
 ## Transport
 
-Communication uses [NATS](https://nats.io/) request/reply and publish/subscribe with three subject namespaces:
+Communication uses [NATS](https://nats.io/) request/reply and publish/subscribe with two subject namespaces:
 
-- **`Subjects`** — Backend subjects for structural operations (entity/component management) and worker lifecycle events. Handled by `EntityHandler`.
-- **`WorkerSubjects`** — Per-component per-entity subjects for property access and method calls. Handled directly by `ComponentWorker` instances.
+- **`Subjects`** — Backend subjects for structural operations (entity/component management), queries, and worker lifecycle events. Handled by `EntityHandler`.
+- **`WorkerSubjects`** — Per-component per-entity subjects for method calls. Handled directly by `ComponentWorker` instances.
 
 Both are defined in `@engine/core`.
 
 ### Backend Subjects (structural)
 
-| Subject                         | Payload (request)                  | Payload (reply)                           |
-| ------------------------------- | ---------------------------------- | ----------------------------------------- |
-| `engine.world.createEntity`     | _(empty)_                          | `EntityId`                                |
-| `engine.world.deleteEntity`     | `EntityId`                         | `"true"/"false"`                          |
-| `engine.world.hasEntity`        | `EntityId`                         | `"true"/"false"`                          |
-| `engine.world.listEntities`     | _(empty)_                          | `EntityId[]` (JSON)                       |
-| `engine.entity.addComponent`    | `{ entityId, componentId }` (JSON) | `{ ok }` or `{ error }`                   |
-| `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON) | `"true"/"false"`                          |
-| `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON) | `"true"/"false"`                          |
-| `engine.entity.getComponents`   | `EntityId`                         | `[{ componentId, propertyNames }]` (JSON) |
+| Subject                         | Payload (request)                  | Payload (reply)                         |
+| ------------------------------- | ---------------------------------- | --------------------------------------- |
+| `engine.world.createEntity`     | _(empty)_                          | `EntityId`                              |
+| `engine.world.deleteEntity`     | `EntityId`                         | `"true"/"false"`                        |
+| `engine.world.hasEntity`        | `EntityId`                         | `"true"/"false"`                        |
+| `engine.world.listEntities`     | _(empty)_                          | `EntityId[]` (JSON)                     |
+| `engine.entity.addComponent`    | `{ entityId, componentId }` (JSON) | `{ ok }` or `{ error }`                |
+| `engine.entity.removeComponent` | `{ entityId, componentId }` (JSON) | `"true"/"false"`                        |
+| `engine.entity.hasComponent`    | `{ entityId, componentId }` (JSON) | `"true"/"false"`                        |
+| `engine.entity.getComponents`   | `EntityId`                         | `[{ componentId, methodNames }]` (JSON) |
+| `engine.entity.query`           | `{ entityId, methodNames }` (JSON) | `{ match, methods? }` (JSON)            |
 
 ### Lifecycle Subjects
 
-| Subject                     | Type          | Payload                                               | Description                                            |
-| --------------------------- | ------------- | ----------------------------------------------------- | ------------------------------------------------------ |
-| `engine.component.register` | Request/reply | `{ componentId, compositeIds, schema }` → `{ ok }`    | Worker container registers a component with its schema |
-| `engine.component.list`     | Request/reply | _(empty)_ → `[{ componentId, compositeIds, schema }]` | List all registered components with schemas            |
-| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)                    | Backend signals a worker should start                  |
-| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)                    | Backend signals a worker should stop                   |
+| Subject                     | Type          | Payload                                                | Description                                            |
+| --------------------------- | ------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| `engine.component.register` | Request/reply | `{ componentId, methodNames, schema }` → `{ ok }`      | Worker container registers a component with its schema |
+| `engine.component.list`     | Request/reply | _(empty)_ → `[{ componentId, methodNames, schema }]`   | List all registered components with schemas            |
+| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)                     | Backend signals a worker should start                  |
+| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)                     | Backend signals a worker should stop                   |
 
 ### Worker Subjects (per-component per-entity)
 
-| Subject pattern                                                  | Payload (request)  | Payload (reply)             |
-| ---------------------------------------------------------------- | ------------------ | --------------------------- |
-| `engine.worker.{componentId}.{entityId}.property.{property}.get` | _(empty)_          | `{ value }` or `{ error }`  |
-| `engine.worker.{componentId}.{entityId}.property.{property}.set` | `{ value }` (JSON) | `{ ok }` or `{ error }`     |
-| `engine.worker.{componentId}.{entityId}.method.{method}`         | `{ input }` (JSON) | `{ result }` or `{ error }` |
+| Subject pattern                                          | Payload (request)  | Payload (reply)             |
+| -------------------------------------------------------- | ------------------ | --------------------------- |
+| `engine.worker.{componentId}.{entityId}.method.{method}` | `{ input }` (JSON) | `{ result }` or `{ error }` |
 
-Each property and method gets its own NATS subject. Workers subscribe to these subjects on `start()` and unsubscribe on `stop()`.
+Each method gets its own NATS subject. Workers subscribe to these subjects on `start()` and unsubscribe on `stop()`.
 
 ## Build
 

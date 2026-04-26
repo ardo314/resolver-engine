@@ -1,7 +1,7 @@
 import type { NatsConnection } from "nats";
 import { StringCodec } from "nats";
 import type { ComponentId, EntityId } from "@engine/core";
-import { Subjects, getAllComposites, toComponentSchema } from "@engine/core";
+import { Subjects, toComponentSchema } from "@engine/core";
 import type { ComponentWorkerClass } from "./component-worker.js";
 import { ComponentWorker, getWorkerComponent } from "./component-worker.js";
 
@@ -28,14 +28,12 @@ export class WorkerHost {
   private async registerComponents(): Promise<void> {
     for (const [componentId, workerClass] of this.workerClasses) {
       const component = getWorkerComponent(workerClass);
-      const composites = getAllComposites(component);
-      const compositeIds = composites.map((c) => c.id as string);
-
+      const methodNames = component.methods.map((m) => m.name);
       const schema = toComponentSchema(component);
 
       const reply = await this.nc.request(
         Subjects.registerComponent,
-        sc.encode(JSON.stringify({ componentId, compositeIds, schema })),
+        sc.encode(JSON.stringify({ componentId, methodNames, schema })),
       );
       const result = JSON.parse(sc.decode(reply.data)) as {
         ok?: boolean;

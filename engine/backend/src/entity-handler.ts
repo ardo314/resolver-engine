@@ -7,7 +7,7 @@ import { EntityRepository } from "./entity-repository.js";
 const sc = StringCodec();
 
 interface RegisteredComponent {
-  readonly compositeIds: ComponentId[];
+  readonly methodNames: string[];
   readonly schema: ComponentSchema;
 }
 
@@ -28,6 +28,7 @@ export class EntityHandler {
     this.handleRemoveComponent();
     this.handleHasComponent();
     this.handleGetComponents();
+    this.handleQueryEntity();
   }
 
   private handleRegisterComponent(): void {
@@ -35,15 +36,15 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         try {
-          const { componentId, compositeIds, schema } = JSON.parse(
+          const { componentId, methodNames, schema } = JSON.parse(
             sc.decode(msg.data),
           ) as {
             componentId: string;
-            compositeIds: string[];
+            methodNames: string[];
             schema: ComponentSchema;
           };
           this.components.set(componentId, {
-            compositeIds: compositeIds as ComponentId[],
+            methodNames,
             schema,
           });
           msg.respond(sc.encode(JSON.stringify({ ok: true })));
@@ -60,9 +61,9 @@ export class EntityHandler {
     (async () => {
       for await (const msg of sub) {
         const entries = [...this.components.entries()].map(
-          ([componentId, { compositeIds, schema }]) => ({
+          ([componentId, { methodNames, schema }]) => ({
             componentId,
-            compositeIds: compositeIds.map((id) => id as string),
+            methodNames,
             schema,
           }),
         );
@@ -142,12 +143,7 @@ export class EntityHandler {
             continue;
           }
 
-          // Record structure
-          this.repo.addComponent(
-            entityId,
-            componentId,
-            registered.compositeIds,
-          );
+          this.repo.addComponent(entityId, componentId);
 
           // Publish start event — worker container will handle it
           this.nc.publish(
@@ -173,13 +169,7 @@ export class EntityHandler {
             entityId: EntityId;
             componentId: ComponentId;
           };
-          const registered = this.components.get(componentId as string);
-          const compositeIds = registered ? registered.compositeIds : [];
-          const result = this.repo.removeComponent(
-            entityId,
-            componentId,
-            compositeIds,
-          );
+          const result = this.repo.removeComponent(entityId, componentId);
 
           // Publish stop event — worker container will handle it
           this.nc.publish(
@@ -224,14 +214,63 @@ export class EntityHandler {
                   const registered = this.components.get(id as string);
                   return {
                     componentId: id as string,
-                    propertyNames: registered
-                      ? Object.keys(registered.schema.properties)
-                      : [],
+                    methodNames: registered ? registered.methodNames : [],
                   };
                 }),
               ),
             ),
           );
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          msg.respond(sc.encode(JSON.stringify({ error: message })));
+        }
+      }
+    })();
+  }
+
+  private handleQueryEntity(): void {
+    const sub = this.nc.subscribe(Subjects.queryEntity);
+    (async () => {
+      for await (const msg of sub) {
+        try {
+          const { entityId, methodNames } = JSON.parse(
+            sc.decode(msg.data),
+          ) as {
+            entityId: EntityId;
+            methodNames: string[];
+          };
+
+          const componentIds = this.repo.getComponentIds(entityId);
+
+          // Build method → componentId mapping across all components on the entity
+          const methodMap: Record<string, string> = {};
+          for (const compId of componentIds) {
+            const registered = this.components.get(compId as string);
+            if (!registered) continue;
+            for (const methodName of registered.methodNames) {
+              // First component wins for a given method name
+              if (!(methodName in methodMap)) {
+                methodMap[methodName] = compId as string;
+              }
+            }
+          }
+
+          // Check if all requested methods are covered
+          const missing = methodNames.filter((m) => !(m in methodMap));
+          if (missing.length > 0) {
+            msg.respond(
+              sc.encode(JSON.stringify({ match: false, missing })),
+            );
+          } else {
+            // Return only the requested methods' mapping
+            const methods: Record<string, string> = {};
+            for (const m of methodNames) {
+              methods[m] = methodMap[m];
+            }
+            msg.respond(
+              sc.encode(JSON.stringify({ match: true, methods })),
+            );
+          }
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           msg.respond(sc.encode(JSON.stringify({ error: message })));

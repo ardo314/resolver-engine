@@ -1,18 +1,15 @@
 import { nameComponent } from "@ardo314/nova";
-import {
-  ComponentWorker,
-  Implements,
-  type ComponentProperty,
-} from "@engine/worker";
+import { ComponentWorker, Implements } from "@engine/worker";
 
 @Implements(nameComponent)
 export class NameWorker extends ComponentWorker {
   private _name = "";
 
-  name: ComponentProperty<string> = {
-    get: () => this._name,
-    set: (value) => {
-      this._name = value;
-    },
-  };
+  "core.getName"() {
+    return this._name;
+  }
+
+  "core.setName"(input: string) {
+    this._name = input;
+  }
 }

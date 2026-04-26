@@ -28,12 +28,7 @@ export interface EntityEntry {
 
 export interface ComponentEntry {
   componentId: string;
-  properties: PropertyEntry[];
-}
-
-export interface PropertyEntry {
-  name: string;
-  value: string;
+  methodNames: string[];
 }
 
 interface EditorState {

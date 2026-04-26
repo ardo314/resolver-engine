@@ -1,240 +1,83 @@
-import { type z, toJSONSchema } from "zod";
+import type { Method, MethodSchema, InferMethod } from "./method.js";
+import { toMethodSchema } from "./method.js";
 
 // --- Branded ID ---
 
 export type ComponentId = string & { readonly __brand: unique symbol };
 
-// --- Property & method definition types ---
-
-export type ComponentPropertyDefinition = z.ZodType;
-
-export type ComponentMethodDefinition = {
-  readonly input?: z.ZodType;
-  readonly output?: z.ZodType;
-};
-
-// --- Component definition ---
-
-export type ComponentDefinition = {
-  readonly properties?: Record<string, ComponentPropertyDefinition>;
-  readonly methods?: Record<string, ComponentMethodDefinition>;
-  readonly composites?: readonly Component[];
-};
-
 // --- Component interface ---
 
 export interface Component<
-  D extends ComponentDefinition = ComponentDefinition,
+  MS extends readonly Method[] = readonly Method[],
 > {
   readonly __type: "component";
   readonly id: ComponentId;
-  readonly definition: D;
+  readonly methods: MS;
 }
 
 // --- Factory ---
 
-export function defineComponent<const D extends ComponentDefinition>(
+export function defineComponent<const MS extends readonly Method[]>(
   id: string,
-  definition: D,
-): Component<D> {
-  // Validate no property name conflicts across composites + own properties
-  validatePropertyConflicts(id, definition);
-
+  methods: MS,
+): Component<MS> {
+  validateMethodConflicts(id, methods);
   return {
     __type: "component" as const,
     id: id as ComponentId,
-    definition,
+    methods,
   };
 }
 
 // --- Conflict validation ---
 
-function collectPropertyNames(
-  definition: ComponentDefinition,
-  visited: Set<string>,
-): string[] {
-  const names: string[] = [];
-  if (definition.properties) {
-    names.push(...Object.keys(definition.properties));
-  }
-  for (const composite of definition.composites ?? []) {
-    const compositeId = composite.id as string;
-    if (visited.has(compositeId)) continue;
-    visited.add(compositeId);
-    names.push(...collectPropertyNames(composite.definition, visited));
-  }
-  return names;
-}
-
-function validatePropertyConflicts(
+function validateMethodConflicts(
   id: string,
-  definition: ComponentDefinition,
+  methods: readonly Method[],
 ): void {
-  const visited = new Set<string>();
-  const names = collectPropertyNames(definition, visited);
   const seen = new Set<string>();
-  for (const name of names) {
-    if (seen.has(name)) {
+  for (const method of methods) {
+    if (seen.has(method.name)) {
       throw new Error(
-        `Component "${id}": duplicate property name "${name}" across composites`,
+        `Component "${id}": duplicate method name "${method.name}"`,
       );
     }
-    seen.add(name);
+    seen.add(method.name);
   }
-}
-
-// --- Helpers ---
-
-/** Recursively collect all composite components (depth-first, deduplicated). */
-export function getAllComposites(component: Component): Component[] {
-  const result: Component[] = [];
-  const visited = new Set<string>();
-  function walk(comp: Component) {
-    for (const composite of comp.definition.composites ?? []) {
-      const cid = composite.id as string;
-      if (visited.has(cid)) continue;
-      visited.add(cid);
-      result.push(composite);
-      walk(composite);
-    }
-  }
-  walk(component);
-  return result;
-}
-
-/** Recursively collect all property names and their zod schemas (own + composites). */
-export function getAllProperties(
-  component: Component,
-): Record<string, z.ZodType> {
-  const result: Record<string, z.ZodType> = {};
-  const visited = new Set<string>();
-  function walk(comp: Component) {
-    if (comp.definition.properties) {
-      Object.assign(result, comp.definition.properties);
-    }
-    for (const composite of comp.definition.composites ?? []) {
-      const cid = composite.id as string;
-      if (visited.has(cid)) continue;
-      visited.add(cid);
-      walk(composite);
-    }
-  }
-  walk(component);
-  return result;
-}
-
-/** Recursively collect all method names and their definitions (own + composites). */
-export function getAllMethods(
-  component: Component,
-): Record<string, ComponentMethodDefinition> {
-  const result: Record<string, ComponentMethodDefinition> = {};
-  const visited = new Set<string>();
-  function walk(comp: Component) {
-    if (comp.definition.methods) {
-      Object.assign(result, comp.definition.methods);
-    }
-    for (const composite of comp.definition.composites ?? []) {
-      const cid = composite.id as string;
-      if (visited.has(cid)) continue;
-      visited.add(cid);
-      walk(composite);
-    }
-  }
-  walk(component);
-  return result;
 }
 
 // --- Serializable schema ---
 
-export interface ComponentMethodSchema {
-  readonly input?: Record<string, unknown>;
-  readonly output?: Record<string, unknown>;
-}
-
 export interface ComponentSchema {
-  readonly properties: Record<string, Record<string, unknown>>;
-  readonly methods: Record<string, ComponentMethodSchema>;
+  readonly methods: Record<string, MethodSchema>;
 }
 
-/** Convert a Component's full definition (own + composites) to a JSON-serializable schema. */
+/** Convert a Component to a JSON-serializable schema. */
 export function toComponentSchema(component: Component): ComponentSchema {
-  const allProps = getAllProperties(component);
-  const allMethodDefs = getAllMethods(component);
-
-  const properties: Record<string, Record<string, unknown>> = {};
-  for (const [name, zodSchema] of Object.entries(allProps)) {
-    properties[name] = toJSONSchema(zodSchema) as Record<string, unknown>;
+  const methods: Record<string, MethodSchema> = {};
+  for (const method of component.methods) {
+    methods[method.name] = toMethodSchema(method);
   }
-
-  const methods: Record<string, ComponentMethodSchema> = {};
-  for (const [name, def] of Object.entries(allMethodDefs)) {
-    methods[name] = {
-      input: def.input
-        ? (toJSONSchema(def.input) as Record<string, unknown>)
-        : undefined,
-      output: def.output
-        ? (toJSONSchema(def.output) as Record<string, unknown>)
-        : undefined,
-    };
-  }
-
-  return { properties, methods };
+  return { methods };
 }
 
 // --- Type inference ---
 
-export type InferComponentProperties<
-  P extends Record<string, ComponentPropertyDefinition>,
-> = {
-  [K in keyof P]: {
-    get(): Promise<z.infer<P[K]>>;
-    set(value: z.infer<P[K]>): Promise<void>;
-  };
-};
-
-export type InferComponentMethod<M extends ComponentMethodDefinition> =
-  M["input"] extends z.ZodType
-    ? M["output"] extends z.ZodType
-      ? (input: z.infer<M["input"]>) => Promise<z.infer<M["output"]>>
-      : (input: z.infer<M["input"]>) => Promise<void>
-    : M["output"] extends z.ZodType
-      ? () => Promise<z.infer<M["output"]>>
-      : () => Promise<void>;
-
-export type InferComponentMethods<
-  M extends Record<string, ComponentMethodDefinition>,
-> = {
-  [K in keyof M]: InferComponentMethod<M[K]>;
-};
-
-// Own properties + methods for a single component definition
-type OwnReference<D extends ComponentDefinition> =
-  (D["properties"] extends Record<string, ComponentPropertyDefinition>
-    ? InferComponentProperties<D["properties"]>
-    : unknown) &
-    (D["methods"] extends Record<string, ComponentMethodDefinition>
-      ? InferComponentMethods<D["methods"]>
-      : unknown);
-
-// Composite references: union of composites → intersection
 type UnionToIntersection<U> = (
   U extends unknown ? (k: U) => void : never
 ) extends (k: infer I) => void
   ? I
   : never;
 
-type CompositeReferences<CS extends readonly Component[]> =
-  CS extends readonly (infer C extends Component)[]
-    ? UnionToIntersection<ComponentReference<C>>
-    : unknown;
+type MethodRefEntry<M> = M extends Method<infer N, infer _D>
+  ? { [K in N]: InferMethod<M> }
+  : never;
 
-/** Full typed reference: own properties/methods + all composite references. */
-export type ComponentReference<C extends Component> = OwnReference<
-  C["definition"]
-> &
-  (C["definition"]["composites"] extends readonly Component[]
-    ? CompositeReferences<C["definition"]["composites"]>
-    : unknown);
+/** Typed reference for a component: intersection of all method signatures keyed by name. */
+export type ComponentReference<C extends Component> =
+  C["methods"] extends readonly (infer M)[]
+    ? UnionToIntersection<MethodRefEntry<M>>
+    : never;
 
 // --- Runtime discrimination ---
 

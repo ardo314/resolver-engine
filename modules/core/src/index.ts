@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineComponent, entityIdSchema } from "@engine/core";
+import { defineComponent, defineMethod, entityIdSchema } from "@engine/core";
 
 export const vector2Schema = z.tuple([z.number(), z.number()]);
 
@@ -51,22 +51,39 @@ export namespace Pose {
   }
 }
 
+// --- Standalone method definitions ---
+
+export const getPose = defineMethod("core.getPose", {
+  output: poseSchema,
+});
+
+export const setPose = defineMethod("core.setPose", {
+  input: poseSchema,
+});
+
+export const getName = defineMethod("core.getName", {
+  output: z.string(),
+});
+
+export const setName = defineMethod("core.setName", {
+  input: z.string(),
+});
+
+export const getParent = defineMethod("core.getParent", {
+  output: entityIdSchema,
+});
+
+export const setParent = defineMethod("core.setParent", {
+  input: entityIdSchema,
+});
+
 // --- Core components ---
 
-export const poseComponent = defineComponent("core.pose", {
-  properties: {
-    pose: poseSchema,
-  },
-});
+export const poseComponent = defineComponent("core.pose", [getPose, setPose]);
 
-export const nameComponent = defineComponent("core.name", {
-  properties: {
-    name: z.string(),
-  },
-});
+export const nameComponent = defineComponent("core.name", [getName, setName]);
 
-export const parentComponent = defineComponent("core.parent", {
-  properties: {
-    parent: entityIdSchema,
-  },
-});
+export const parentComponent = defineComponent("core.parent", [
+  getParent,
+  setParent,
+]);

@@ -5,8 +5,8 @@ import {
   Subjects,
   WorkerSubjects,
   type Component,
-  getAllProperties,
-  getAllMethods,
+  type Query,
+  type QueryReference,
 } from "@engine/core";
 
 const sc = StringCodec();
@@ -17,49 +17,13 @@ function createRemoteComponentReference<C extends Component>(
   component: C,
 ): ComponentReference<C> {
   const proxy: Record<string, unknown> = {};
-  const allProps = getAllProperties(component);
-  for (const key of Object.keys(allProps)) {
-    proxy[key] = {
-      async get() {
-        const reply = await nc.request(
-          WorkerSubjects.getProperty(
-            component.id as string,
-            entityId as string,
-            key,
-          ),
-        );
-        const result = JSON.parse(sc.decode(reply.data)) as {
-          value?: unknown;
-          error?: string;
-        };
-        if (result.error) throw new Error(result.error);
-        return result.value;
-      },
-      async set(value: unknown) {
-        const reply = await nc.request(
-          WorkerSubjects.setProperty(
-            component.id as string,
-            entityId as string,
-            key,
-          ),
-          sc.encode(JSON.stringify({ value })),
-        );
-        const result = JSON.parse(sc.decode(reply.data)) as {
-          ok?: boolean;
-          error?: string;
-        };
-        if (result.error) throw new Error(result.error);
-      },
-    };
-  }
-  const allMethodDefs = getAllMethods(component);
-  for (const name of Object.keys(allMethodDefs)) {
-    proxy[name] = async (input?: unknown) => {
+  for (const method of component.methods) {
+    proxy[method.name] = async (input?: unknown) => {
       const reply = await nc.request(
         WorkerSubjects.callMethod(
           component.id as string,
           entityId as string,
-          name,
+          method.name,
         ),
         input !== undefined ? sc.encode(JSON.stringify({ input })) : undefined,
       );
@@ -72,6 +36,35 @@ function createRemoteComponentReference<C extends Component>(
     };
   }
   return proxy as ComponentReference<C>;
+}
+
+function createRemoteQueryReference<Q extends Query>(
+  nc: NatsConnection,
+  entityId: EntityId,
+  query: Q,
+  methodMap: Record<string, string>,
+): QueryReference<Q> {
+  const proxy: Record<string, unknown> = {};
+  for (const method of query.methods) {
+    const componentId = methodMap[method.name];
+    proxy[method.name] = async (input?: unknown) => {
+      const reply = await nc.request(
+        WorkerSubjects.callMethod(
+          componentId,
+          entityId as string,
+          method.name,
+        ),
+        input !== undefined ? sc.encode(JSON.stringify({ input })) : undefined,
+      );
+      const result = JSON.parse(sc.decode(reply.data)) as {
+        result?: unknown;
+        error?: string;
+      };
+      if (result.error) throw new Error(result.error);
+      return result.result;
+    };
+  }
+  return proxy as QueryReference<Q>;
 }
 
 export class Entity {
@@ -124,49 +117,37 @@ export class Entity {
     return createRemoteComponentReference(this.nc, this.id, component);
   }
 
+  async query<Q extends Query>(
+    query: Q,
+  ): Promise<QueryReference<Q> | null> {
+    const methodNames = query.methods.map((m) => m.name);
+    const reply = await this.nc.request(
+      Subjects.queryEntity,
+      sc.encode(
+        JSON.stringify({ entityId: this.id, methodNames }),
+      ),
+    );
+    const result = JSON.parse(sc.decode(reply.data)) as {
+      match: boolean;
+      methods?: Record<string, string>;
+    };
+    if (!result.match) return null;
+    return createRemoteQueryReference(this.nc, this.id, query, result.methods!);
+  }
+
   async getComponentEntries(): Promise<
     {
       componentId: string;
-      properties: { name: string; value: string }[];
+      methodNames: string[];
     }[]
   > {
     const reply = await this.nc.request(
       Subjects.getComponents,
       sc.encode(this.id),
     );
-    const structural = JSON.parse(sc.decode(reply.data)) as {
+    return JSON.parse(sc.decode(reply.data)) as {
       componentId: string;
-      propertyNames: string[];
+      methodNames: string[];
     }[];
-
-    const result: {
-      componentId: string;
-      properties: { name: string; value: string }[];
-    }[] = [];
-
-    for (const { componentId, propertyNames } of structural) {
-      const properties: { name: string; value: string }[] = [];
-      for (const name of propertyNames) {
-        try {
-          const propReply = await this.nc.request(
-            WorkerSubjects.getProperty(componentId, this.id as string, name),
-          );
-          const propResult = JSON.parse(sc.decode(propReply.data)) as {
-            value?: unknown;
-            error?: string;
-          };
-          properties.push({
-            name,
-            value: propResult.error
-              ? `<error: ${propResult.error}>`
-              : JSON.stringify(propResult.value),
-          });
-        } catch {
-          properties.push({ name, value: "<unavailable>" });
-        }
-      }
-      result.push({ componentId, properties });
-    }
-    return result;
   }
 }
