@@ -6,23 +6,23 @@ Monorepo with a C# engine, C# providers, a TypeScript client library, and a Reac
 
 ### C# Projects (built via `dotnet build`)
 
-| Project           | Path               | Type | Description                                                   |
-| ----------------- | ------------------ | ---- | ------------------------------------------------------------- |
-| `Engine`          | `engine/`          | Exe  | Core types + backend server (entity/component management)     |
-| `Client`          | `clients/csharp/`  | Lib  | C# client library (World, Entity)                             |
-| `Modules.Core`    | `modules/core/`    | Lib  | Core method and component definitions (pose, name, parent)    |
-| `Modules.Nova`    | `modules/nova/`    | Lib  | Nova component definitions (reuses core methods)              |
-| `Providers.Nova`  | `providers/nova/`  | Exe  | Nova provider — implements components (replaces TS workers)   |
-| `Deployments.Nova`| `deployments/nova/`| Exe  | NOVA cell app installer                                       |
+| Project            | Path                | Type | Description                                                 |
+| ------------------ | ------------------- | ---- | ----------------------------------------------------------- |
+| `Engine`           | `engine/`           | Exe  | Core types + backend server (entity/component management)   |
+| `Client`           | `clients/csharp/`   | Lib  | C# client library (World, Entity)                           |
+| `Modules.Core`     | `modules/core/`     | Lib  | Core method and component definitions (pose, name, parent)  |
+| `Modules.Nova`     | `modules/nova/`     | Lib  | Nova component definitions (reuses core methods)            |
+| `Providers.Nova`   | `providers/nova/`   | Exe  | Nova provider — implements components (replaces TS workers) |
+| `Deployments.Nova` | `deployments/nova/` | Exe  | NOVA cell app installer                                     |
 
 All C# projects target `net9.0`. The solution file is `ComponentEngine.sln`.
 
 ### TypeScript Packages (built via `tsc --build`)
 
-| Package          | Path          | Description                                  |
-| ---------------- | ------------- | -------------------------------------------- |
-| `@engine/client` | `clients/js/` | Client library (core types + client API)     |
-| `@engine/editor` | `editor/`     | Vite + React frontend                        |
+| Package          | Path          | Description                              |
+| ---------------- | ------------- | ---------------------------------------- |
+| `@engine/client` | `clients/js/` | Client library (core types + client API) |
+| `@engine/editor` | `editor/`     | Vite + React frontend                    |
 
 TypeScript packages use project references and build via `npm run build` at the root.
 
@@ -163,12 +163,12 @@ Each method gets its own NATS subject. Providers subscribe to these subjects on 
 
 Container images are built from Dockerfiles and deployed as NOVA cell apps via the `Deployments.Nova` project.
 
-| Image                              | Dockerfile                    | Description                            |
-| ---------------------------------- | ----------------------------- | -------------------------------------- |
-| `component-engine-backend`         | `engine/Dockerfile`           | .NET backend for entity management     |
-| `component-engine-editor`          | `editor/Dockerfile`           | Vite/React SPA served via nginx        |
-| `component-engine-nova-provider`   | `providers/nova/Dockerfile`   | .NET Nova provider host                |
-| `component-engine-nova`            | `deployments/nova/Dockerfile` | .NET NOVA cell app installer           |
+| Image                            | Dockerfile                    | Description                        |
+| -------------------------------- | ----------------------------- | ---------------------------------- |
+| `component-engine-backend`       | `engine/Dockerfile`           | .NET backend for entity management |
+| `component-engine-editor`        | `editor/Dockerfile`           | Vite/React SPA served via nginx    |
+| `component-engine-nova-provider` | `providers/nova/Dockerfile`   | .NET Nova provider host            |
+| `component-engine-nova`          | `deployments/nova/Dockerfile` | .NET NOVA cell app installer       |
 
 The backend and provider images are multi-stage .NET builds. The editor image builds the Vite SPA in a Node.js stage and serves the static output with nginx on port 8080, with SPA fallback routing.
 
