@@ -23,6 +23,11 @@ RUN curl -sL "https://github.com/nats-io/nats-server/releases/download/${NATS_VE
     && cp /tmp/nats-server-${NATS_VERSION}-linux-amd64/nats-server /usr/local/bin/ \
     && rm -rf /tmp/nats-server-*
 
+# Install .NET 9 SDK
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 9.0 --install-dir /usr/share/dotnet \
+    && ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
+ENV DOTNET_ROOT=/usr/share/dotnet
+
 # Install Skaffold
 RUN curl -Lo /usr/local/bin/skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64 \
     && chmod +x /usr/local/bin/skaffold

@@ -6,14 +6,16 @@
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "npm install && dotnet restore",
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-azuretools.vscode-containers",
         "github.copilot-chat",
         "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp"
       ],
       "settings": {
         "editor.formatOnSave": true,

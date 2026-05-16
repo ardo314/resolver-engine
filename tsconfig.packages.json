@@ -1,16 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "engine/core" },
-    { "path": "engine/backend" },
-    { "path": "engine/client" },
-    { "path": "engine/worker" },
-    { "path": "engine/editor" },
-    { "path": "modules/core" },
-    { "path": "modules/in-memory" },
-    { "path": "modules/nova" },
-    { "path": "workers/in-memory" },
-    { "path": "workers/nova" },
-    { "path": "deployments/nova" }
+    { "path": "clients/js" },
+    { "path": "editor" }
   ]
 }

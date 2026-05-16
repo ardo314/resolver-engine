@@ -2,10 +2,8 @@
   "name": "component-engine",
   "private": true,
   "workspaces": [
-    "engine/*",
-    "modules/*",
-    "workers/*",
-    "deployments/*"
+    "clients/js",
+    "editor"
   ],
   "version": "1.1.0",
   "scripts": {

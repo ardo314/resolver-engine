@@ -2,23 +2,29 @@
 
 ## Project Structure
 
-Monorepo with engine packages under `engine/`, component definition modules under `modules/`, and worker implementations under `workers/`:
+Monorepo with a C# engine, C# providers, a TypeScript client library, and a React editor.
 
-| Package                      | Path                | Description                                                  |
-| ---------------------------- | ------------------- | ------------------------------------------------------------ |
-| `@engine/core`               | `engine/core`       | Core types: entities, components                             |
-| `@engine/backend`            | `engine/backend`    | Server-side entity structure management                      |
-| `@engine/client`             | `engine/client`     | Client-side API                                              |
-| `@engine/worker`             | `engine/worker`     | Worker system: workers, decorators, WorkerHost               |
-| `@engine/editor`             | `engine/editor`     | Vite + React frontend                                        |
-| `@ardo314/core`              | `modules/core`      | Core schemas and base components (pose, name, parent)        |
-| `@ardo314/in-memory`         | `modules/in-memory` | In-memory component definitions that compose core components |
-| `@ardo314/nova`              | `modules/nova`      | Nova component definitions that compose core components      |
-| `@ardo314/in-memory-workers` | `workers/in-memory` | In-memory workers (depends on worker, in-memory)             |
-| `@ardo314/nova-workers`      | `workers/nova`      | Nova workers (depends on worker, nova)                       |
-| `@engine/nova-deploy`        | `deployments/nova`  | NOVA cell app installer and dev deployment tooling           |
+### C# Projects (built via `dotnet build`)
 
-All packages use TypeScript project references and build via `tsc --build`.
+| Project           | Path               | Type | Description                                                   |
+| ----------------- | ------------------ | ---- | ------------------------------------------------------------- |
+| `Engine`          | `engine/`          | Exe  | Core types + backend server (entity/component management)     |
+| `Client`          | `clients/csharp/`  | Lib  | C# client library (World, Entity)                             |
+| `Modules.Core`    | `modules/core/`    | Lib  | Core method and component definitions (pose, name, parent)    |
+| `Modules.Nova`    | `modules/nova/`    | Lib  | Nova component definitions (reuses core methods)              |
+| `Providers.Nova`  | `providers/nova/`  | Exe  | Nova provider — implements components (replaces TS workers)   |
+| `Deployments.Nova`| `deployments/nova/`| Exe  | NOVA cell app installer                                       |
+
+All C# projects target `net9.0`. The solution file is `ComponentEngine.sln`.
+
+### TypeScript Packages (built via `tsc --build`)
+
+| Package          | Path          | Description                                  |
+| ---------------- | ------------- | -------------------------------------------- |
+| `@engine/client` | `clients/js/` | Client library (core types + client API)     |
+| `@engine/editor` | `editor/`     | Vite + React frontend                        |
+
+TypeScript packages use project references and build via `npm run build` at the root.
 
 ## Key Concepts
 
@@ -28,28 +34,28 @@ A uniquely identifiable runtime object. Identified by an `EntityId` (branded str
 
 ### Method
 
-A first-class standalone unit of behaviour, defined via `defineMethod(name, { input?, output? })`. Methods are namespaced (e.g. `"core.getPose"`, `"in-memory.setTarget"`). Each method has:
+A first-class standalone unit of behaviour. In C#, defined via `Method.Define(name)` or its generic overloads (`Define<TOutput>`, `DefineWithInput<TInput>`, `Define<TInput, TOutput>`). In TypeScript, defined via `defineMethod(name, { input?, output? })` with Zod schemas. Methods are namespaced (e.g. `"getPose"`, `"setName"`). Each method has:
 
-- **`name`** — A globally unique namespaced string identifier.
-- **`input`** (optional) — A Zod schema describing the method's input type.
-- **`output`** (optional) — A Zod schema describing the method's return type.
+- **`name`** — A globally unique string identifier.
+- **`input`** (optional) — The input type (C#: `Type`, TS: `z.ZodType`).
+- **`output`** (optional) — The return type.
 
-Methods carry a `__type: "method"` tag for runtime discrimination. The same `Method` object is reused across multiple component definitions.
+In TypeScript, methods carry a `__type: "method"` tag for runtime discrimination. The same `Method` object is reused across multiple component definitions.
 
 ### Component
 
-A component is identified by a `ComponentId` (explicit branded string) and carries a list of methods. Defined via `defineComponent(id, [method1, method2, ...])`.
+A component is identified by a `ComponentId` and carries a list of methods. In C#, defined via `Component.Define(id, methods...)`. In TypeScript, defined via `defineComponent(id, [method1, method2, ...])`.
 
-Components carry a `__type: "component"` tag for runtime discrimination.
+In TypeScript, components carry a `__type: "component"` tag for runtime discrimination.
 
-**Identity:** Component IDs are explicit strings passed to `defineComponent`. Two components with the same ID are the same component.
+**Identity:** Component IDs are explicit strings. Two components with the same ID are the same component.
 
 **Constraints:**
 
 - An entity can have at most one instance of a given component (by ID).
-- Method names must be unique within a component. `defineComponent` throws at definition time if a duplicate is detected.
+- Method names must be unique within a component. `Define`/`defineComponent` throws at definition time if a duplicate is detected.
 
-`ComponentReference<C>` infers a TypeScript interface from a component's method list, producing typed async method signatures keyed by method name.
+In TypeScript, `ComponentReference<C>` infers a typed interface from a component's method list, producing typed async method signatures keyed by method name.
 
 ### Query & Duck Typing
 
@@ -65,63 +71,48 @@ A component can also be used as a query since it carries a method list.
 
 ### Core Methods & Module Components
 
-`@ardo314/core` defines standalone methods representing fundamental capabilities:
+`Modules.Core` (C#) / `@engine/client` (TS) defines standalone methods representing fundamental capabilities:
 
-- `core.getPose` / `core.setPose` — position + rotation access
-- `core.getName` / `core.setName` — display name access
-- `core.getParent` / `core.setParent` — parent entity reference access
+- `getPose` / `setPose` — position + rotation access (6-element double array: x, y, z, rx, ry, rz)
+- `getName` / `setName` — display name access
+- `getParent` / `setParent` — parent entity reference access
 
-Core components (`core.pose`, `core.name`, `core.parent`) bundle these methods but have no workers of their own.
+Core components (`core.pose`, `core.name`, `core.parent`) bundle these methods.
 
-`@ardo314/in-memory` defines implementation-specific components that reuse the same core methods:
+`Modules.Nova` (C#) defines Nova-specific components that reuse the same core methods:
 
-- `in-memory.name` uses `[core.getName, core.setName]`
-- `in-memory.parent` uses `[core.getParent, core.setParent]`
-- `in-memory.pose` uses `[core.getPose, core.setPose]`
-- `in-memory.follow-pose` uses `[in-memory.getTarget, in-memory.setTarget, core.getPose, core.setPose]`
+- `nova.name` uses `[getName, setName]`
+- `nova.parent` uses `[getParent, setParent]`
+- `nova.pose` uses `[getPose, setPose]`
 
-Because methods are shared across components, querying an entity with `defineQuery([getPose, setPose, getName])` will match if the entity has `in-memory.pose` (providing `getPose`/`setPose`) and `in-memory.name` (providing `getName`/`setName`). Workers implement the in-memory components.
+### Component Provider
 
-### Component Worker
+A `ComponentProvider` (C#) is a class that implements the runtime behaviour for a component. There is **one provider instance per component on an entity**. Providers replace the previous TypeScript worker system.
 
-A `ComponentWorker` is a class that implements the runtime behaviour for a component. There is **one worker instance per component on an entity**. Workers are defined using a single decorator:
+Each provider extends `ComponentProvider` and implements `HandleMethod(methodName, input)` which dispatches method calls. The provider's `Component` property declares which component it implements.
 
-- **`@Implements(component)`** — Class decorator. Declares which component the worker implements. The decorator is generic over the component type: if the worker class does not implement all required methods, TypeScript reports a compile-time error. The expected shape is captured by the `WorkerImplementation<C>` type.
+**Provider lifecycle:** Providers run in separate containers (e.g. in Kubernetes), not inside the backend. Each provider module runs in its own container using a `ProviderHost`. On startup, the `ProviderHost` registers its components with the backend via `Subjects.RegisterComponent` (request/reply), sending the component's method names. It then subscribes to `Subjects.StartWorker` and `Subjects.StopWorker` (fire-and-forget publishes from the backend). When `StartWorker` arrives with a matching `componentId`, the host instantiates the provider and calls `Start(nc, entityId)`. When `StopWorker` arrives, it calls `Stop()` and removes the instance.
 
-The component's method list is the single source of truth for which methods a worker must expose. For each method, the worker class provides a matching instance method (using the namespaced method name as the key, e.g. `"core.getPose"`). Method schemas come from the `defineMethod(...)` call — workers do not redeclare them.
+Within a single provider instance, `Start()` subscribes to per-method subjects for the component. `Stop()` unsubscribes. Each method is identified by its name, its component, and its entity.
 
-Workers extend the abstract `ComponentWorker` base class. At `start()` time, the base class iterates over the component's methods to create per-method NATS subscriptions automatically. If a worker does not implement a required method, `start()` throws immediately (fail-fast).
-
-**Worker lifecycle:** Workers run in separate containers (e.g. in Kubernetes), not inside the backend. Each worker module runs in its own container using a `WorkerHost`. On startup, the `WorkerHost` registers its components with the backend via `Subjects.registerComponent` (request/reply), sending the component's method names and schema. It then subscribes to `Subjects.startWorker` and `Subjects.stopWorker` (fire-and-forget publishes from the backend). When `startWorker` arrives with a matching `componentId`, the host instantiates the worker and calls `start(nc, entityId)`. When `stopWorker` arrives, it calls `stop()` and removes the instance.
-
-Within a single worker instance, `start()` subscribes to per-method subjects for the component. `stop()` unsubscribes. Each method is identified by its name, its component, and its entity.
-
-**Independence from backend:** Workers operate independently of the backend. The backend only tracks which entities have which components (structural data) and publishes lifecycle events. It does not relay or control worker subscriptions or method messages. Clients communicate with workers directly via `WorkerSubjects`.
+**Independence from backend:** Providers operate independently of the backend. The backend only tracks which entities have which components (structural data) and publishes lifecycle events. It does not relay or control provider subscriptions or method messages. Clients communicate with providers directly via `WorkerSubjects`.
 
 ## Serialization
 
-Zod schemas serve as the single source of truth for both TypeScript types (via `z.infer`) and runtime validation.
+JSON is the wire format for all NATS messages. In C#, `System.Text.Json` handles serialization. In TypeScript, Zod schemas serve as the source of truth for types (via `z.infer`) and runtime validation.
 
 ### Component Schema Registration
 
-When workers register components with the backend, they include a `ComponentSchema` — a JSON-serializable representation of the component's methods. Method schemas are converted from Zod types to JSON Schema using Zod v4's built-in `toJSONSchema()`. The `ComponentSchema` type is defined in `@engine/core`:
-
-```typescript
-interface ComponentSchema {
-  methods: Record<string, { input?: JSONSchema; output?: JSONSchema }>;
-}
-```
-
-The backend stores the schema alongside structural component data. Clients can retrieve schemas via `listComponents` and use method names from the schema when interacting with entities.
+When providers register components with the backend, they include a `ComponentSchema` — a JSON-serializable representation of the component's methods. The backend stores the schema alongside structural component data. Clients can retrieve schemas via `listComponents`.
 
 ## Transport
 
 Communication uses [NATS](https://nats.io/) request/reply and publish/subscribe with two subject namespaces:
 
-- **`Subjects`** — Backend subjects for structural operations (entity/component management), queries, and worker lifecycle events. Handled by `EntityHandler`.
-- **`WorkerSubjects`** — Per-component per-entity subjects for method calls. Handled directly by `ComponentWorker` instances.
+- **`Subjects`** — Backend subjects for structural operations (entity/component management), queries, and provider lifecycle events. Handled by `EntityHandler` (C#).
+- **`WorkerSubjects`** — Per-component per-entity subjects for method calls. Handled directly by `ComponentProvider` instances (C#).
 
-Both are defined in `@engine/core`.
+Both are defined in `Engine.Core` (C#) and `@engine/client` (TS).
 
 ### Backend Subjects (structural)
 
@@ -139,12 +130,12 @@ Both are defined in `@engine/core`.
 
 ### Lifecycle Subjects
 
-| Subject                     | Type          | Payload                                              | Description                                            |
-| --------------------------- | ------------- | ---------------------------------------------------- | ------------------------------------------------------ |
-| `engine.component.register` | Request/reply | `{ componentId, methodNames, schema }` → `{ ok }`    | Worker container registers a component with its schema |
-| `engine.component.list`     | Request/reply | _(empty)_ → `[{ componentId, methodNames, schema }]` | List all registered components with schemas            |
-| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)                   | Backend signals a worker should start                  |
-| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)                   | Backend signals a worker should stop                   |
+| Subject                     | Type          | Payload                                              | Description                                              |
+| --------------------------- | ------------- | ---------------------------------------------------- | -------------------------------------------------------- |
+| `engine.component.register` | Request/reply | `{ componentId, methodNames, schema }` → `{ ok }`    | Provider container registers a component with its schema |
+| `engine.component.list`     | Request/reply | _(empty)_ → `[{ componentId, methodNames, schema }]` | List all registered components with schemas              |
+| `engine.worker.start`       | Publish       | `{ entityId, componentId }` (JSON)                   | Backend signals a provider should start                  |
+| `engine.worker.stop`        | Publish       | `{ entityId, componentId }` (JSON)                   | Backend signals a provider should stop                   |
 
 ### Worker Subjects (per-component per-entity)
 
@@ -152,51 +143,57 @@ Both are defined in `@engine/core`.
 | -------------------------------------------------------- | ------------------ | --------------------------- |
 | `engine.worker.{componentId}.{entityId}.method.{method}` | `{ input }` (JSON) | `{ result }` or `{ error }` |
 
-Each method gets its own NATS subject. Workers subscribe to these subjects on `start()` and unsubscribe on `stop()`.
+Each method gets its own NATS subject. Providers subscribe to these subjects on `Start()` and unsubscribe on `Stop()`.
 
 ## Build
 
+### C#
+
+- **Framework:** .NET 9.0
+- **Build command:** `dotnet build` (root)
+
+### TypeScript
+
 - **Target:** ES2022
-- **Module:** Node16
+- **Module:** ESNext (bundler resolution)
 - **Build command:** `npm run build` (root)
 - **Watch:** `npm run watch` (root)
 
 ## Deployment
 
-Container images are built from Dockerfiles within the respective packages and deployed as NOVA cell apps via the `@engine/nova-deploy` package.
+Container images are built from Dockerfiles and deployed as NOVA cell apps via the `Deployments.Nova` project.
 
-| Image                               | Dockerfile                     | Description                          |
-| ----------------------------------- | ------------------------------ | ------------------------------------ |
-| `component-engine-backend`          | `engine/backend/Dockerfile`    | Node.js server for entity management |
-| `component-engine-editor`           | `engine/editor/Dockerfile`     | Vite/React SPA served via nginx      |
-| `component-engine-in-memory-worker` | `workers/in-memory/Dockerfile` | In-memory worker host (Node.js)      |
-| `component-engine-nova-worker`      | `workers/nova/Dockerfile`      | Nova worker host (Node.js)           |
-| `component-engine-nova`             | `deployments/nova/Dockerfile`  | NOVA cell app installer (Node.js)    |
+| Image                              | Dockerfile                    | Description                            |
+| ---------------------------------- | ----------------------------- | -------------------------------------- |
+| `component-engine-backend`         | `engine/Dockerfile`           | .NET backend for entity management     |
+| `component-engine-editor`          | `editor/Dockerfile`           | Vite/React SPA served via nginx        |
+| `component-engine-nova-provider`   | `providers/nova/Dockerfile`   | .NET Nova provider host                |
+| `component-engine-nova`            | `deployments/nova/Dockerfile` | .NET NOVA cell app installer           |
 
-The backend image is a multi-stage Node.js build. The editor image builds the Vite SPA in a Node.js stage and serves the static output with nginx on port 8080, with SPA fallback routing.
+The backend and provider images are multi-stage .NET builds. The editor image builds the Vite SPA in a Node.js stage and serves the static output with nginx on port 8080, with SPA fallback routing.
 
 ### Local Development
 
 Start each service in a separate terminal inside the devcontainer. VS Code auto-forwards the ports to the host browser.
 
 ```sh
-npm run build                    # compile TypeScript (or npm run watch)
-nats-server -c nats.conf         # start NATS
-node engine/backend/dist/index.js          # start backend
-node workers/in-memory/dist/index.js       # start in-memory worker host
-cd engine/editor && npm run dev             # start Vite dev server
+npm run build                        # compile TypeScript (or npm run watch)
+dotnet build                         # compile C#
+nats-server -c nats.conf             # start NATS
+dotnet run --project engine          # start backend
+dotnet run --project providers/nova  # start Nova provider
+cd editor && npm run dev             # start Vite dev server
 ```
 
-NATS listens on port 4222 (client), 8222 (monitoring), and 9222 (WebSocket). The browser editor connects to NATS via WebSocket on port 9222. `nats.conf` at the repo root configures NATS with HTTP monitoring and WebSocket. `engine/editor/.env` provides the `VITE_NATS_URL` so Vite serves the correct WebSocket URL to the browser.
+NATS listens on port 4222 (client), 8222 (monitoring), and 9222 (WebSocket). The browser editor connects to NATS via WebSocket on port 9222. `nats.conf` at the repo root configures NATS with HTTP monitoring and WebSocket. `editor/.env` provides the `VITE_NATS_URL` so Vite serves the correct WebSocket URL to the browser.
 
 ### Graceful Shutdown
 
-Backend and worker entry points register SIGTERM/SIGINT handlers that call `nc.drain()`. Drain is a NATS built-in that processes all in-flight messages, unsubscribes, and then closes the connection.
+Backend and provider entry points register SIGTERM/SIGINT handlers that cancel a `CancellationTokenSource`, causing subscriptions to end and the NATS connection to be disposed.
 
-The `@engine/nova-deploy` package uses `@wandelbots/nova-api` to manage cell apps via the NOVA API and provides two entry points:
+The `Deployments.Nova` project uses `HttpClient` to manage cell apps via the NOVA API:
 
-- **`install-apps`** (`node dist/install.js`) — Production mode. Runs inside a NOVA cell app container. Reads `NOVA_API`, `CELL_NAME`, `NATS_BROKER`, `BACKEND_IMAGE`, `EDITOR_IMAGE`, and `WORKER_IMAGES` (comma-delimited image URLs) from the environment, installs the backend, editor, and worker apps via `ApplicationApi.addApp()`, and stays alive.
-- **`dev`** (`node dist/dev.js`) — Development mode. Runs locally. Builds TypeScript, builds and pushes Docker images with `:dev` tags, then deletes and reinstalls the apps in a NOVA cell. Supports `--skip-build`, `--backend-only`, and `--editor-only` flags.
+- **`install`** (`dotnet run --project deployments/nova`) — Production mode. Runs inside a NOVA cell app container. Reads `NOVA_API`, `CELL_NAME`, `NATS_BROKER`, `BACKEND_IMAGE`, `EDITOR_IMAGE`, and `PROVIDER_IMAGE_N` (indexed provider image URLs) from the environment, installs apps via the NOVA Applications API, and stays alive.
 
 ## Versioning & Release
 

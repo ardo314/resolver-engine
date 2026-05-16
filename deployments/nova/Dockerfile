@@ -1,43 +1,19 @@
-FROM node:25-slim AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 
-WORKDIR /app
+WORKDIR /src
 
-# Copy root workspace files
-COPY package.json tsconfig.json tsconfig.packages.json ./
+COPY deployments/nova/Deployments.Nova.csproj deployments/nova/
+RUN dotnet restore deployments/nova/Deployments.Nova.csproj
 
-# Copy only the nova-deploy package
-COPY deployments/nova/package.json deployments/nova/
-COPY deployments/nova/tsconfig.json deployments/nova/
-
-RUN npm install
-
-COPY deployments/nova/src/ deployments/nova/src/
-
-RUN npx tsc --build deployments/nova
+COPY deployments/nova/ deployments/nova/
+RUN dotnet publish deployments/nova/Deployments.Nova.csproj -c Release -o /app
 
 # --- production image ---
-FROM node:25-slim
-
-ARG BACKEND_IMAGE
-ARG EDITOR_IMAGE
-ARG WORKER_IMAGE_0
-ARG WORKER_IMAGE_1
-ENV BACKEND_IMAGE=${BACKEND_IMAGE}
-ENV EDITOR_IMAGE=${EDITOR_IMAGE}
-ENV WORKER_IMAGE_0=${WORKER_IMAGE_0}
-ENV WORKER_IMAGE_1=${WORKER_IMAGE_1}
+FROM mcr.microsoft.com/dotnet/runtime:9.0
 
 WORKDIR /app
+COPY --from=build /app .
 
-COPY package.json ./
-COPY deployments/nova/package.json deployments/nova/
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
-RUN npm install --workspace=@engine/nova-deploy --omit=dev
-
-COPY --from=build /app/deployments/nova/dist/ deployments/nova/dist/
-
-USER node
-
-CMD ["node", "deployments/nova/dist/install.js"]
-
-
+ENTRYPOINT ["dotnet", "Deployments.Nova.dll"]
